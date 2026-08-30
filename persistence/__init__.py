@@ -7,6 +7,7 @@ isolates database implementation details from the rest of the application.
 from persistence.config import Settings
 from persistence.database import Database
 from persistence.exceptions import (
+    ConfigurationError,
     DatabaseConnectionError,
     DuplicateTenderError,
     PersistenceError,
@@ -26,6 +27,7 @@ __all__ = [
     "TenderStatus",
     "verify_schema",
     "PersistenceError",
+    "ConfigurationError",
     "DatabaseConnectionError",
     "RepositoryError",
     "DuplicateTenderError",
