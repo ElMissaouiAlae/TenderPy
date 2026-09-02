@@ -2,13 +2,17 @@
 
 from datetime import date, timedelta
 
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
 from core.exceptions import HttpRequestError
 from core.http import HttpClient
 from core.session import SearchSession
 from discovery.orchestrator import DiscoveryOrchestrator
 from discovery.parser import SearchCriteria
 from downloader import TenderDownloader
-from persistence import Database, Settings, TenderRepository
+from persistence import Database, Settings, TenderRepository, TenderStatus
+from uploader import TenderUploader
 
 from .config import BASE_URL, DOWNLOAD_DIR, REQUEST_DELAY, logger
 from .helpers import log_http_error
@@ -31,8 +35,12 @@ def test_date_range_search():
 
     database = None
     try:
-        database = Database(Settings.from_env())
+        settings = Settings.from_env()
+        database = Database(settings)
         repository = TenderRepository(database)
+
+        bucket_name, region = settings.require_s3()
+        s3_client = boto3.client("s3", region_name=region)
 
         with HttpClient(base_url=BASE_URL, timeout=30, request_delay=REQUEST_DELAY) as http_client:
             session = SearchSession(http_client)
@@ -74,9 +82,13 @@ def test_date_range_search():
                         f"Tender {tender.tender_id}/{tender.organization_acronym} "
                         "was not found in the database after discover()"
                     )
+                    continue
 
                 downloader = TenderDownloader(
                     http_client, tender.tender_id, tender.organization_acronym
+                )
+                repository.update_status(
+                    tender.tender_id, tender.organization_acronym, TenderStatus.DOWNLOADING
                 )
                 try:
                     response = downloader.download()
@@ -88,6 +100,43 @@ def test_date_range_search():
                     log_http_error(
                         exc, f"download DCE for {tender.tender_id}/{tender.organization_acronym}"
                     )
+                    repository.update_status(
+                        tender.tender_id,
+                        tender.organization_acronym,
+                        TenderStatus.FAILED,
+                        last_status=TenderStatus.DOWNLOADING,
+                    )
+                    continue
+                repository.update_status(
+                    tender.tender_id, tender.organization_acronym, TenderStatus.DOWNLOADED
+                )
+
+                uploader = TenderUploader(
+                    s3_client, tender.tender_id, tender.organization_acronym, bucket_name
+                )
+                repository.update_status(
+                    tender.tender_id, tender.organization_acronym, TenderStatus.UPLOADING
+                )
+                try:
+                    uploader.upload(dce_path)
+                    logger.info(f"Uploaded DCE for {tender.tender_id}/{tender.organization_acronym} to S3")
+                except (ClientError, BotoCoreError) as exc:
+                    log_http_error(
+                        exc, f"upload DCE for {tender.tender_id}/{tender.organization_acronym}"
+                    )
+                    repository.update_status(
+                        tender.tender_id,
+                        tender.organization_acronym,
+                        TenderStatus.FAILED,
+                        last_status=TenderStatus.UPLOADING,
+                    )
+                    continue
+                repository.update_status(
+                    tender.tender_id, tender.organization_acronym, TenderStatus.UPLOADED
+                )
+                repository.update_status(
+                    tender.tender_id, tender.organization_acronym, TenderStatus.INDEXED
+                )
             logger.info(f"Verified {verified}/{len(tenders)} discovered tenders are present in the database")
             logger.info(f"Downloaded {downloaded}/{len(tenders)} DCE archives to {DOWNLOAD_DIR}")
             if verified != len(tenders):
