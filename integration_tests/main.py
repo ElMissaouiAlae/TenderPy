@@ -27,7 +27,8 @@ def main():
     logger.info("Make sure to update BASE_URL with the correct website URL")
 
     try:
-        test_date_range_search()
+        test_date_range_search()   
+        test_status_transitions()
     except Exception:
         logger.error("Integration test failed - see above for details")
         sys.exit(1)

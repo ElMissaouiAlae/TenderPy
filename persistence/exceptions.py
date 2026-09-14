@@ -9,6 +9,10 @@ class DatabaseConnectionError(PersistenceError):
     """Raised when database connection fails."""
 
 
+class ConfigurationError(PersistenceError):
+    """Raised when required configuration (e.g. env vars) is missing."""
+
+
 class RepositoryError(PersistenceError):
     """Raised when repository operations fail."""
 
