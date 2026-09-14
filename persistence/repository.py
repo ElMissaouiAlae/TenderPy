@@ -170,6 +170,10 @@ class TenderRepository:
             RecordNotFoundError: if no tender matches the given identity.
             RepositoryError: if the update operation fails.
         """
+        if status == TenderStatus.FAILED and (
+            last_status is None or last_status == TenderStatus.FAILED
+        ):
+            raise ValueError("FAILED status requires a non-FAILED last_status")
         if last_status is not None and status != TenderStatus.FAILED:
             raise ValueError(
                 f"last_status is only meaningful when status=FAILED, got status={status!r}"

@@ -40,7 +40,7 @@ def test_date_range_search():
         repository = TenderRepository(database)
 
         bucket_name, region = settings.require_s3()
-        s3_client = boto3.client("s3", region_name=region)
+        s3_client = boto3.client(bucket_name, region_name=region)
 
         with HttpClient(base_url=BASE_URL, timeout=30, request_delay=REQUEST_DELAY) as http_client:
             session = SearchSession(http_client)
