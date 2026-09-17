@@ -1,10 +1,8 @@
 """Tests for the downloader module."""
 
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock, patch
 
 from downloader import TenderDownloader
-import logging 
-logger = logging.getLogger(__name__)
 
 
 def test_tender_downloader_initialization():
@@ -36,16 +34,25 @@ def test_download_url_encodes_reserved_characters():
     )
 
 
-def test_download_calls_http_client_get_with_download_url():
+def test_download_gets_archive_and_uploads_it_to_s3():
     http_client = Mock()
     mock_response = Mock(content=b"PK\x03\x04fake-zip-bytes")
     http_client.get = Mock(return_value=mock_response)
+    s3_client = Mock()
 
-    downloader = TenderDownloader(http_client, "1032737", "j0w")
-    response = downloader.download()
-    logger.info(f"Response content: {response.content}")
+    with patch("downloader.boto3.client", return_value=s3_client), patch.dict(
+        "downloader.os.environ", {"S3_BUCKET_NAME": "test-bucket"}
+    ):
+        downloader = TenderDownloader(http_client, "1032737", "j0w")
+        downloader.download()
 
     http_client.get.assert_called_once_with(downloader.download_url)
-    assert response is mock_response
-    assert response.content == b"PK\x03\x04fake-zip-bytes"
+    mock_response.raise_for_status.assert_called_once_with()
+    s3_client.upload_fileobj.assert_called_once_with(
+        Fileobj=ANY,
+        Bucket="test-bucket",
+        Key=downloader.filename,
+    )
+    uploaded_file = s3_client.upload_fileobj.call_args.kwargs["Fileobj"]
+    assert uploaded_file.read() == b"PK\x03\x04fake-zip-bytes"
 

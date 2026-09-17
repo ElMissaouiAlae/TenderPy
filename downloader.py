@@ -2,34 +2,32 @@
 
 from __future__ import annotations
 
+import os
+from io import BytesIO
 from urllib.parse import urlencode
 
-import requests
+import boto3
 
 from core.http import HttpClient
 
 
 class TenderDownloader:
-    """Fetch the DCE zip archive for a single tender via a direct GET request.
-    """
-
+    """Fetch a tender's DCE archive and upload it to S3."""
     DOWNLOAD_PAGE = "entreprise.EntrepriseDownloadCompleteDce"
 
-    def __init__(self, http_client: HttpClient, tender_id: str, organization_acronym: str) -> None:
-        """Initialize the downloader with an HttpClient and the target tender's identity."""
+    def __init__(
+        self,
+        http_client: HttpClient,
+        tender_id: str,
+        organization_acronym: str,
+    ) -> None:
         self._http_client = http_client
         self._tender_id = tender_id
         self._organization_acronym = organization_acronym
+        self._s3 = boto3.client("s3")
 
     @property
     def download_url(self) -> str:
-        """Build the direct DCE download URL for this tender.
-
-        tender_id/organization_acronym are untrusted values scraped off search
-        results, so they're run through urlencode rather than interpolated
-        directly - a reserved character (e.g. "&") would otherwise split or
-        truncate the query string.
-        """
         query = urlencode({
             "page": self.DOWNLOAD_PAGE,
             "reference": self._tender_id,
@@ -37,6 +35,23 @@ class TenderDownloader:
         })
         return f"?{query}"
 
-    def download(self) -> requests.Response:
-        """Fetch the DCE zip archive; `.content` holds the raw zip bytes."""
-        return self._http_client.get(self.download_url)
+    @property
+    def filename(self) -> str:
+        return f"{self._tender_id}_{self._organization_acronym}.zip"
+
+    def download(self) -> None:
+        """Download the DCE and upload it to S3."""
+
+        response = self._http_client.get(self.download_url)
+        response.raise_for_status()
+
+        bucket_name = os.environ.get("S3_BUCKET_NAME")
+        if not bucket_name:
+            raise ValueError("S3_BUCKET_NAME environment variable is not set")
+
+        self._s3.upload_fileobj(
+            Fileobj=BytesIO(response.content),
+            Bucket=bucket_name,
+            Key=self.filename,
+        )
+
