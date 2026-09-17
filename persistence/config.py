@@ -40,7 +40,7 @@ class Settings:
         """Load settings from environment variables.
 
         Loads environment variables from .env file if present.
-        Expects DB_DATABASE_URL to be set. S3_BUCKET_NAME and S3_REGION are
+        Expects DB_URL to be set. S3_BUCKET_NAME and S3_REGION are
         read if present but not required here - they're only validated by
         require_s3(), called at the point S3 access is actually needed, so
         that callers who only need database settings aren't forced to
@@ -50,14 +50,14 @@ class Settings:
             Settings instance configured from environment.
 
         Raises:
-            DatabaseConnectionError: if DB_DATABASE_URL is missing.
+            DatabaseConnectionError: if DB_URL is missing.
         """
         load_dotenv()
 
-        database_url = os.getenv("DB_DATABASE_URL")
+        database_url = os.getenv("DB_URL")
         if not database_url:
             raise DatabaseConnectionError(
-                "DB_DATABASE_URL environment variable is required"
+                "DB_URL environment variable is required"
             )
 
         return cls(
@@ -73,8 +73,7 @@ class Settings:
     def require_s3(self) -> tuple[str, str]:
         """Validate that S3 settings are present, raising if not.
 
-        Call this at the point S3 access is actually needed (e.g. when
-        constructing an S3 client for TenderUploader) rather than in
+        Call this at the point S3 access is actually needed rather than in
         from_env(), so that flows which never touch S3 aren't forced to
         configure it.
 

@@ -7,7 +7,7 @@ from persistence.exceptions import ConfigurationError, DatabaseConnectionError
 
 
 def test_from_env_requires_database_url(monkeypatch):
-    monkeypatch.delenv("DB_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DB_URL", raising=False)
     monkeypatch.setattr("persistence.config.load_dotenv", lambda: None)
 
     with pytest.raises(DatabaseConnectionError):
@@ -16,7 +16,7 @@ def test_from_env_requires_database_url(monkeypatch):
 
 def test_from_env_does_not_require_s3_settings(monkeypatch):
     monkeypatch.setattr("persistence.config.load_dotenv", lambda: None)
-    monkeypatch.setenv("DB_DATABASE_URL", "postgresql://user:pass@localhost/db")
+    monkeypatch.setenv("DB_URL", "postgresql://user:pass@localhost/db")
     monkeypatch.delenv("S3_BUCKET_NAME", raising=False)
     monkeypatch.delenv("S3_REGION", raising=False)
 
@@ -28,7 +28,7 @@ def test_from_env_does_not_require_s3_settings(monkeypatch):
 
 
 def test_from_env_reads_s3_settings_when_present(monkeypatch):
-    monkeypatch.setenv("DB_DATABASE_URL", "postgresql://user:pass@localhost/db")
+    monkeypatch.setenv("DB_URL", "postgresql://user:pass@localhost/db")
     monkeypatch.setenv("S3_BUCKET_NAME", "tenders-bucket")
     monkeypatch.setenv("S3_REGION", "eu-west-3")
 
