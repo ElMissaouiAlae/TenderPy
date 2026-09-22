@@ -1,4 +1,4 @@
-"""Download the DCE (Dossier de Consultation des Entreprises) zip archive for a tender."""
+"""Download the DCE (Dossier de Consultation des Entreprises) archive."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ from core.http import HttpClient
 
 
 class TenderDownloader:
-    """Fetch a tender's DCE archive and upload it to S3."""
+    """Fetch a tender's DCE archive with HTTP and upload it to S3."""
+
     DOWNLOAD_PAGE = "entreprise.EntrepriseDownloadCompleteDce"
 
     def __init__(
@@ -21,6 +22,7 @@ class TenderDownloader:
         tender_id: str,
         organization_acronym: str,
     ) -> None:
+        """Initialize the downloader with an HTTP client and tender identity."""
         self._http_client = http_client
         self._tender_id = tender_id
         self._organization_acronym = organization_acronym
@@ -28,6 +30,7 @@ class TenderDownloader:
 
     @property
     def download_url(self) -> str:
+        """Return the encoded archive endpoint URL."""
         query = urlencode({
             "page": self.DOWNLOAD_PAGE,
             "reference": self._tender_id,
@@ -37,11 +40,11 @@ class TenderDownloader:
 
     @property
     def filename(self) -> str:
+        """Return the S3 object name for the tender archive."""
         return f"{self._tender_id}_{self._organization_acronym}.zip"
 
     def download(self) -> None:
-        """Download the DCE and upload it to S3."""
-
+        """Download the DCE archive and upload it to S3."""
         response = self._http_client.get(self.download_url)
         response.raise_for_status()
 
@@ -54,4 +57,3 @@ class TenderDownloader:
             Bucket=bucket_name,
             Key=self.filename,
         )
-
