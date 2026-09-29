@@ -9,6 +9,7 @@ from discovery.orchestrator import DiscoveryOrchestrator
 from discovery.parser import SearchCriteria
 from downloader import TenderDownloader
 from persistence import Database, Settings, TenderRepository, TenderStatus
+from persistence.file_storage import S3DocumentStorage
 
 from .config import BASE_URL, REQUEST_DELAY, logger
 from .helpers import log_http_error
@@ -36,6 +37,7 @@ def test_date_range_search():
         settings = Settings.from_env()
         database = Database(settings)
         repository = TenderRepository(database)
+        document_storage = S3DocumentStorage(settings)
 
         with HttpClient(base_url=BASE_URL, timeout=30, request_delay=REQUEST_DELAY) as http_client:
             session = SearchSession(http_client)
@@ -79,7 +81,10 @@ def test_date_range_search():
                     continue
 
                 downloader = TenderDownloader(
-                    http_client, tender.tender_id, tender.organization_acronym
+                    http_client,
+                    tender.tender_id,
+                    tender.organization_acronym,
+                    document_storage,
                 )
                 repository.update_status(
                     tender.tender_id, tender.organization_acronym, TenderStatus.DOWNLOADING
