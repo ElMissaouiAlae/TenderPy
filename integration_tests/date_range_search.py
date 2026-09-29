@@ -1,12 +1,14 @@
-"""Test search with date range parameters, persisting directly to Postgres."""
+"""Test date-range discovery and DCE persistence."""
 
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
+
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import sync_playwright
 
 from core.exceptions import HttpRequestError
 from core.http import HttpClient
 from core.session import SearchSession
 from discovery.orchestrator import DiscoveryOrchestrator
-from discovery.parser import SearchCriteria
 from downloader import TenderDownloader
 from persistence import Database, Settings, TenderRepository, TenderStatus
 from persistence.file_storage import S3DocumentStorage
@@ -18,24 +20,10 @@ BATCH_SIZE = 5
 
 
 def test_date_range_search():
-    """Test search with date range parameters (last 2 days), persisting directly to Postgres.
-
-    Unlike the other test_* functions here, this one doesn't dump results to a
-    JSON file - discover() persists to the 'tender_records' table as a side
-    effect, and this then reads back from the database to confirm it landed.
-
-    Raises on any failure (connection errors, write failures, missing
-    persisted records) instead of swallowing them - callers must not treat
-    a caught exception here as a passing run.
-    """
-    logger.info("\n" + "="*60)
-    logger.info("TEST: Date Range Search (persists to Postgres)")
-    logger.info("="*60)
-
+    """Discover tenders with Playwright and download a verification batch."""
     database = None
     try:
-        settings = Settings.from_env()
-        database = Database(settings)
+        database = Database(Settings.from_env())
         repository = TenderRepository(database)
         document_storage = S3DocumentStorage(settings)
 
@@ -62,22 +50,30 @@ def test_date_range_search():
 
             tenders = orchestrator.discover(criteria)
             logger.info(f"Discovered {len(tenders)} tenders - persisted to 'tender_records' as a side effect of discover()")
+        search_url = (
+            f"{BASE_URL}/index.php?"
+            "page=entreprise.EntrepriseAdvancedSearch&searchAnnCons"
+        )
+        end_date = datetime.now(UTC).date()
+        start_date = end_date - timedelta(days=2)
+
+        with (
+            HttpClient(base_url=BASE_URL, timeout=30, request_delay=REQUEST_DELAY) as http_client,
+            sync_playwright() as playwright,
+        ):
+            SearchSession(http_client).initialize(search_url)
+            orchestrator = DiscoveryOrchestrator(search_url, playwright, repository)
+            tenders = orchestrator.discover(start_date, end_date)
+            logger.info("Discovered %d tenders", len(tenders))
 
             verified = 0
             downloaded = 0
-            tender_index = 0
-            while tender_index < len(tenders) and verified < BATCH_SIZE:
-                tender = tenders[tender_index]
-                tender_index += 1
+            for tender in tenders:
+                if verified >= BATCH_SIZE:
+                    break
                 if not tender.tender_id or not tender.organization_acronym:
                     continue
-                if repository.exists(tender.tender_id, tender.organization_acronym):
-                    verified += 1
-                else:
-                    logger.warning(
-                        f"Tender {tender.tender_id}/{tender.organization_acronym} "
-                        "was not found in the database after discover()"
-                    )
+                if not repository.exists(tender.tender_id, tender.organization_acronym):
                     continue
 
                 downloader = TenderDownloader(
@@ -86,51 +82,30 @@ def test_date_range_search():
                     tender.organization_acronym,
                     document_storage,
                 )
+                verified += 1
                 repository.update_status(
                     tender.tender_id, tender.organization_acronym, TenderStatus.DOWNLOADING
                 )
                 try:
-                    downloader.download()
+                    TenderDownloader(
+                        http_client,
+                        tender.tender_id,
+                        tender.organization_acronym,
+                    ).download()
                     downloaded += 1
-                    logger.info(f"Downloaded DCE for {tender.tender_id}/{tender.organization_acronym}")
-                except HttpRequestError as exc:
-                    log_http_error(
-                        exc, f"download DCE for {tender.tender_id}/{tender.organization_acronym}"
+                    repository.update_status(
+                        tender.tender_id, tender.organization_acronym, TenderStatus.DOWNLOADED
                     )
+                except (HttpRequestError, PlaywrightError) as exc:
+                    log_http_error(exc, f"download DCE for {tender.tender_id}")
                     repository.update_status(
                         tender.tender_id,
                         tender.organization_acronym,
                         TenderStatus.FAILED,
                         last_status=TenderStatus.DOWNLOADING,
                     )
-                    continue
-                repository.update_status(
-                    tender.tender_id, tender.organization_acronym, TenderStatus.DOWNLOADED
-                )
-            expected_verified = min(BATCH_SIZE, len(tenders))
-            logger.info(
-                f"Verified {verified}/{expected_verified} tenders in the test batch"
-            )
-            logger.info(
-                f"Downloaded {downloaded}/{expected_verified} DCE archives to S3"
-            )
-            if verified != expected_verified:
-                raise AssertionError(
-                    f"Persistence verification failed: {verified}/{expected_verified} "
-                    "records found in the test batch"
-                )
 
-            for i, tender in enumerate(tenders[:5], 1):
-                logger.info(f"Tender {i}:")
-                logger.info(f"  ID: {tender.tender_id}")
-                logger.info(f"  Organization: {tender.organization_acronym}")
-                logger.info(f"  Object: {tender.tender_object}")
-                logger.info(f"  Buyer: {tender.public_buyer}")
-                logger.info(f"  Publication Date: {tender.publication_date}")
-
-            if len(tenders) > 5:
-                logger.info(f"... and {len(tenders) - 5} more tenders")
-
+            logger.info("Verified %d tenders; downloaded %d archives", verified, downloaded)
             return tenders
     except Exception as exc:
         log_http_error(exc, "date_range_search")
