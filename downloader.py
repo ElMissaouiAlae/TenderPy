@@ -58,6 +58,8 @@ class TenderDownloader:
         """Download the DCE archive and upload it to S3."""
         response = self._http_client.get(self.download_url)
         response.raise_for_status()
+        self._document_storage.save_document(self.filename, response.content)
+
 
         bucket_name = os.environ.get("S3_BUCKET_NAME")
         if not bucket_name:

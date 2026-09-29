@@ -58,6 +58,8 @@ def test_download_saves_archive_through_document_storage():
         downloader.filename, b"PK\x03\x04fake-zip-bytes"
     )
 
+    )
+
     response.raise_for_status.assert_called_once_with()
     s3_client.upload_fileobj.assert_called_once_with(
         Fileobj=ANY,
