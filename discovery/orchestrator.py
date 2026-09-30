@@ -2,26 +2,36 @@
 
 from __future__ import annotations
 
-from datetime import date
-
-from playwright.sync_api import Playwright
-
 from core.models import Tender
+from core.session import SearchSession
 from persistence.repository import TenderRepository
 
 from .client import DiscoveryClient
+from .parser import SearchCriteria
 
 
 class DiscoveryOrchestrator:
     """High-level orchestration that hides pagination complexity from callers."""
 
-    def __init__(self, url: str, playwright: Playwright, repository: TenderRepository) -> None:
-        """Initialize the orchestrator with Playwright and a repository."""
-        self._client = DiscoveryClient(url, playwright)
+    def __init__(self, session: SearchSession, repository: TenderRepository) -> None:
+        """Initialize the orchestrator with an active SearchSession and a TenderRepository."""
+        self._client = DiscoveryClient(session)
         self._repository = repository
 
-    def discover(self, start_date: date, end_date: date) -> list[Tender]:
-        """Discover all tenders in the date range and persist them."""
-        tenders = self._client.search(start_date, end_date)
+    def discover(self, criteria: SearchCriteria) -> list[Tender]:
+        """Discover all tenders matching the criteria and persist them as a side effect."""
+        all_pages = self._client.search_all(criteria)
+
+        tenders: list[Tender] = []
+        for page in all_pages:
+            tenders.extend(page.tenders)
+
         self._repository.save_many(tenders)
+
         return tenders
+
+    def discover_paginated(self, criteria: SearchCriteria) -> list[list[Tender]]:
+        """Discover all tenders, yielding pages of tenders."""
+        all_pages = self._client.search_all(criteria)
+            
+        return [page.tenders for page in all_pages]

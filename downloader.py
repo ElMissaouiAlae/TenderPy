@@ -1,4 +1,4 @@
-"""Download the DCE (Dossier de Consultation des Entreprises) archive."""
+"""Download the DCE (Dossier de Consultation des Entreprises) zip archive for a tender."""
 
 from __future__ import annotations
 
@@ -27,7 +27,6 @@ class TenderDownloader:
             organization_acronym: Organization owning the tender.
             document_storage: Storage adapter used to persist archive bytes.
         """
-        """Initialize the downloader with an HTTP client and tender identity."""
         self._http_client = http_client
         self._tender_id = tender_id
         self._organization_acronym = organization_acronym
@@ -35,7 +34,6 @@ class TenderDownloader:
 
     @property
     def download_url(self) -> str:
-        """Return the encoded archive endpoint URL."""
         query = urlencode({
             "page": self.DOWNLOAD_PAGE,
             "reference": self._tender_id,
@@ -45,7 +43,6 @@ class TenderDownloader:
 
     @property
     def filename(self) -> str:
-        """Return the S3 object name for the tender archive."""
         return f"{self._tender_id}_{self._organization_acronym}.zip"
 
     def download(self) -> None:
@@ -55,18 +52,3 @@ class TenderDownloader:
         response.raise_for_status()
         self._document_storage.save_document(self.filename, response.content)
 
-        """Download the DCE archive and upload it to S3."""
-        response = self._http_client.get(self.download_url)
-        response.raise_for_status()
-        self._document_storage.save_document(self.filename, response.content)
-
-
-        bucket_name = os.environ.get("S3_BUCKET_NAME")
-        if not bucket_name:
-            raise ValueError("S3_BUCKET_NAME environment variable is not set")
-
-        self._s3.upload_fileobj(
-            Fileobj=BytesIO(response.content),
-            Bucket=bucket_name,
-            Key=self.filename,
-        )
