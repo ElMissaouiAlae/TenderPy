@@ -94,7 +94,9 @@ class SearchSession:
 
         soup = BeautifulSoup(html, "html.parser")
 
-       
+        # Map exact HTML input `name` -> dataclass attribute.
+        # `required=True` fields must be present with a non-empty value;
+        # everything else defaults to "" if missing (legitimate on first load).
         prado_mapping = {
             "PRADO_PAGESTATE": ("prado_page_state", True),
         }
@@ -123,7 +125,11 @@ class SearchSession:
             setattr(self.state, dataclass_attr, value)
             found_fields.add(html_name)
 
-
+        # Belt-and-suspenders: required fields must have actually been set.
+        # This comprehension returns the names of any required PRADO fields that were
+        # defined in `prado_mapping` but were not found and recorded during parsing.
+        # If the set is non-empty, it means the HTML response was missing one or more
+        # required hidden inputs, so we raise a PradoStateError.
         missing_required = {
             html_name for html_name, (_, required) in prado_mapping.items()
             if required and html_name not in found_fields

@@ -13,8 +13,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration 
-BASE_URL = "https://www.marchespublics.gov.ma"  
+# Configuration - UPDATE THIS WITH THE REAL WEBSITE BASE URL
+BASE_URL = "https://www.marchespublics.gov.ma"  # Example URL - update with actual URL
 
 # Local directory where downloaded DCE archives are saved during integration tests
 DOWNLOAD_DIR = Path("integration_test_downloads")
