@@ -39,14 +39,18 @@ def test_from_env_reads_s3_settings_when_present(monkeypatch):
 
 
 def test_require_s3_raises_when_bucket_missing():
-    settings = Settings(database_url="postgresql://x", s3_bucket_name=None, s3_region="eu-west-3")
+    settings = Settings(
+        database_url="postgresql://x", s3_bucket_name=None, s3_region="eu-west-3"
+    )
 
     with pytest.raises(ConfigurationError):
         settings.require_s3()
 
 
 def test_require_s3_raises_when_region_missing():
-    settings = Settings(database_url="postgresql://x", s3_bucket_name="tenders-bucket", s3_region=None)
+    settings = Settings(
+        database_url="postgresql://x", s3_bucket_name="tenders-bucket", s3_region=None
+    )
 
     with pytest.raises(ConfigurationError):
         settings.require_s3()
@@ -54,7 +58,33 @@ def test_require_s3_raises_when_region_missing():
 
 def test_require_s3_returns_bucket_and_region_when_present():
     settings = Settings(
-        database_url="postgresql://x", s3_bucket_name="tenders-bucket", s3_region="eu-west-3"
+        database_url="postgresql://x",
+        s3_bucket_name="tenders-bucket",
+        s3_region="eu-west-3",
     )
 
     assert settings.require_s3() == ("tenders-bucket", "eu-west-3")
+
+
+def test_from_env_uses_embedding_defaults(monkeypatch):
+    monkeypatch.setattr("persistence.config.load_dotenv", lambda: None)
+    monkeypatch.setenv("DB_URL", "postgresql://user:pass@localhost/db")
+    monkeypatch.delenv("EMBEDDING_MODEL", raising=False)
+    monkeypatch.delenv("EMBEDDING_DIM", raising=False)
+
+    settings = Settings.from_env()
+
+    assert settings.embedding_model == "BAAI/bge-m3"
+    assert settings.embedding_dim == 1024
+
+
+def test_from_env_reads_embedding_overrides(monkeypatch):
+    monkeypatch.setattr("persistence.config.load_dotenv", lambda: None)
+    monkeypatch.setenv("DB_URL", "postgresql://user:pass@localhost/db")
+    monkeypatch.setenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-base")
+    monkeypatch.setenv("EMBEDDING_DIM", "768")
+
+    settings = Settings.from_env()
+
+    assert settings.embedding_model == "intfloat/multilingual-e5-base"
+    assert settings.embedding_dim == 768

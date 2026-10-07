@@ -21,6 +21,8 @@ class Settings:
             used - call require_s3() at the point of use to validate.
         s3_region: AWS region the S3 bucket lives in, or None if not
             configured. Same lazy-validation caveat as s3_bucket_name.
+        embedding_model: Name of the embedding model used for indexing.
+        embedding_dim: Dimension of the vectors produced by embedding_model.
         pool_size: Connection pool size
         max_overflow: Maximum overflow connections beyond pool_size
         pool_timeout: Timeout in seconds for getting a connection from pool
@@ -30,6 +32,8 @@ class Settings:
     database_url: str
     s3_bucket_name: str | None = None
     s3_region: str | None = None
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_dim: int = 1024
     pool_size: int = 5
     max_overflow: int = 10
     pool_timeout: int = 30
@@ -64,6 +68,8 @@ class Settings:
             database_url=database_url,
             s3_bucket_name=os.getenv("S3_BUCKET_NAME"),
             s3_region=os.getenv("S3_REGION"),
+            embedding_model=os.getenv("EMBEDDING_MODEL", cls.embedding_model),
+            embedding_dim=int(os.getenv("EMBEDDING_DIM", str(cls.embedding_dim))),
             pool_size=int(os.getenv("DB_POOL_SIZE", str(cls.pool_size))),
             max_overflow=int(os.getenv("DB_MAX_OVERFLOW", str(cls.max_overflow))),
             pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", str(cls.pool_timeout))),
