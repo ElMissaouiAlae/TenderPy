@@ -203,6 +203,31 @@ class TenderRepository:
         except Exception as exc:
             raise RepositoryError(f"Failed to update tender status: {exc}") from exc
 
+    def find_by_status(self, status: TenderStatus, limit: int) -> List[Tender]:
+        """Return up to `limit` tenders with the given status, oldest record first.
+
+        Args:
+            status: Status to select tenders by.
+            limit: Maximum number of tenders to return.
+
+        Returns:
+            Matching domain Tender objects, ordered by record id.
+
+        Raises:
+            RepositoryError: if the query fails.
+        """
+        try:
+            with self._database.session() as session:
+                stmt = (
+                    select(TenderRecord)
+                    .where(TenderRecord.status == status.value)
+                    .order_by(TenderRecord.id)
+                    .limit(limit)
+                )
+                return [to_domain(record) for record in session.scalars(stmt)]
+        except Exception as exc:
+            raise RepositoryError(f"Failed to find tenders by status: {exc}") from exc
+
     def exists(self, tender_id: str, organization_acronym: str) -> bool:
         """Check if a tender exists in the database.
 

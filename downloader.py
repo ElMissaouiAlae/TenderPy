@@ -8,6 +8,11 @@ from core.http import HttpClient
 from persistence.file_storage import DocumentStorage
 
 
+def dce_archive_name(tender_id: str, organization_acronym: str) -> str:
+    """Name a tender's DCE archive is stored under."""
+    return f"{tender_id}_{organization_acronym}.zip"
+
+
 class TenderDownloader:
     """Fetch a tender's DCE archive and pass it to document storage."""
     DOWNLOAD_PAGE = "entreprise.EntrepriseDownloadCompleteDce"
@@ -43,7 +48,7 @@ class TenderDownloader:
 
     @property
     def filename(self) -> str:
-        return f"{self._tender_id}_{self._organization_acronym}.zip"
+        return dce_archive_name(self._tender_id, self._organization_acronym)
 
     def download(self) -> None:
         """Download the DCE archive and store it through the configured adapter."""
