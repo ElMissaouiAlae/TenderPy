@@ -241,3 +241,152 @@ def test_real_bge_m3_produces_1024_dim_vectors_and_is_recorded_on_chunks(work_ro
     for chunk in dce_file.chunks:
         assert chunk.embedding_model == "BAAI/bge-m3"
         assert len(chunk.embedding) == 1024
+
+
+def run_single_tender(archive: bytes, work_root, chunker):
+    tender = Tender(tender_id="T1", organization_acronym="ORG")
+    pipeline, repository, vector_store, _ = build_pipeline(
+        [(tender, TenderStatus.UPLOADED)], {"T1_ORG.zip": archive}, work_root, chunker
+    )
+    pipeline.run(limit=1)
+    files = {dce_file.path: dce_file for dce_file in vector_store.files[("T1", "ORG")]}
+    return repository.statuses[("T1", "ORG")], files
+
+
+def test_nested_zips_are_extracted_recursively_with_their_nesting_in_the_path(
+    work_root, chunker
+):
+    pdf = (FIXTURES / "cps.pdf").read_bytes()
+    archive = zip_bytes(
+        {
+            "CPS.pdf": pdf,
+            "annexes.zip": zip_bytes(
+                {"RC.pdf": pdf, "lots/deep.zip": zip_bytes({"BPU.pdf": pdf})}
+            ),
+        }
+    )
+
+    status, files = run_single_tender(archive, work_root, chunker)
+
+    assert status == TenderStatus.INDEXED
+    assert list(files) == [
+        "CPS.pdf",
+        "annexes.zip/RC.pdf",
+        "annexes.zip/lots/deep.zip/BPU.pdf",
+    ]
+    for dce_file in files.values():
+        assert dce_file.status == DceFileStatus.CHUNKED
+        assert dce_file.file_type == "pdf"
+        assert dce_file.chunks
+
+
+def test_unsupported_dce_file_is_skipped_with_a_reason_and_no_chunks(work_root, chunker):
+    archive = zip_bytes({"plans/plan.dwg": b"AC1027\x00\x00binary drawing\x01\x02"})
+
+    status, files = run_single_tender(archive, work_root, chunker)
+
+    assert status == TenderStatus.INDEXED
+    dce_file = files["plans/plan.dwg"]
+    assert dce_file.status == DceFileStatus.SKIPPED
+    assert dce_file.file_type == "dwg"
+    assert dce_file.reason
+    assert dce_file.chunks == []
+
+
+def test_image_dce_file_is_skipped_since_ocr_is_off(work_root, chunker):
+    archive = zip_bytes({"signature.png": b"\x89PNG\r\n\x1a\n" + b"\x00" * 20})
+
+    _, files = run_single_tender(archive, work_root, chunker)
+
+    assert files["signature.png"].status == DceFileStatus.SKIPPED
+
+
+def test_corrupt_pdf_is_failed_with_the_error_and_no_chunks(work_root, chunker):
+    archive = zip_bytes({"CCAP.pdf": b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog\ntruncated"})
+
+    status, files = run_single_tender(archive, work_root, chunker)
+
+    assert status == TenderStatus.INDEXED
+    dce_file = files["CCAP.pdf"]
+    assert dce_file.status == DceFileStatus.FAILED
+    assert dce_file.reason
+    assert dce_file.chunks == []
+
+
+def test_corrupt_nested_zip_is_failed_without_failing_the_tender(work_root, chunker):
+    archive = zip_bytes(
+        {"CPS.pdf": (FIXTURES / "cps.pdf").read_bytes(), "annexes.zip": b"not a zip"}
+    )
+
+    status, files = run_single_tender(archive, work_root, chunker)
+
+    assert status == TenderStatus.INDEXED
+    assert files["CPS.pdf"].status == DceFileStatus.CHUNKED
+    nested = files["annexes.zip"]
+    assert nested.status == DceFileStatus.FAILED
+    assert nested.file_type == "zip"
+    assert nested.reason
+    assert nested.chunks == []
+
+
+def test_tender_with_good_skipped_and_failed_files_reaches_indexed(work_root, chunker):
+    archive = zip_bytes(
+        {
+            "CPS.pdf": (FIXTURES / "cps.pdf").read_bytes(),
+            "plan.dwg": b"AC1027\x00\x00binary drawing\x01\x02",
+            "CCAP.pdf": b"%PDF-1.4\ntruncated",
+        }
+    )
+
+    tender = Tender(tender_id="T1", organization_acronym="ORG")
+    pipeline, repository, vector_store, _ = build_pipeline(
+        [(tender, TenderStatus.UPLOADED)], {"T1_ORG.zip": archive}, work_root, chunker
+    )
+    pipeline.run(limit=1)
+
+    assert repository.history[("T1", "ORG")] == [
+        TenderStatus.CHUNKING,
+        TenderStatus.CHUNKED,
+        TenderStatus.EMBEDDING,
+        TenderStatus.INDEXED,
+    ]
+    files = {f.path: f for f in vector_store.files[("T1", "ORG")]}
+    assert {path: f.status for path, f in files.items()} == {
+        "CPS.pdf": DceFileStatus.CHUNKED,
+        "plan.dwg": DceFileStatus.SKIPPED,
+        "CCAP.pdf": DceFileStatus.FAILED,
+    }
+    assert len(files["CPS.pdf"].chunks) == 2
+    assert list(work_root.iterdir()) == []
+
+
+def corrupt_member(archive: bytes, name: str) -> bytes:
+    """Flip a byte of a stored member's data so reading it fails its CRC check."""
+    with zipfile.ZipFile(BytesIO(archive)) as zip_file:
+        info = zip_file.getinfo(name)
+    data_start = info.header_offset + 30 + len(info.filename.encode()) + len(info.extra)
+    corrupted = bytearray(archive)
+    corrupted[data_start] ^= 0xFF
+    return bytes(corrupted)
+
+
+def test_unreadable_members_are_failed_while_their_siblings_are_still_chunked(
+    work_root, chunker
+):
+    pdf = (FIXTURES / "cps.pdf").read_bytes()
+    annexes = corrupt_member(zip_bytes({"RC.pdf": pdf, "BPU.pdf": pdf}), "BPU.pdf")
+    archive = corrupt_member(
+        zip_bytes({"CPS.pdf": pdf, "CCAP.pdf": pdf, "annexes.zip": annexes}), "CCAP.pdf"
+    )
+
+    status, files = run_single_tender(archive, work_root, chunker)
+
+    assert status == TenderStatus.INDEXED
+    assert {path: f.status for path, f in files.items()} == {
+        "CPS.pdf": DceFileStatus.CHUNKED,
+        "CCAP.pdf": DceFileStatus.FAILED,
+        "annexes.zip/RC.pdf": DceFileStatus.CHUNKED,
+        "annexes.zip/BPU.pdf": DceFileStatus.FAILED,
+    }
+    assert files["CCAP.pdf"].reason
+    assert files["annexes.zip/BPU.pdf"].reason

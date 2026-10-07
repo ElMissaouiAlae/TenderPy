@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from docling.datamodel.base_models import InputFormat
+from docling.datamodel.base_models import ConversionStatus, InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.transforms.chunker.doc_chunk import DocChunk
@@ -13,6 +13,18 @@ from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTok
 from transformers import AutoTokenizer
 
 from indexing.models import TextChunk
+
+# Formats with no text to extract while OCR is off (images, scans of
+# signatures) or that need speech models; Docling reports them as skipped.
+_EXCLUDED_FORMATS = {InputFormat.IMAGE, InputFormat.AUDIO, InputFormat.VIDEO}
+
+
+class UnsupportedFileError(Exception):
+    """The DCE file's type is not one Docling chunks."""
+
+
+class ChunkingError(Exception):
+    """Docling could not convert a DCE file of a supported type."""
 
 
 class DoclingChunker:
@@ -32,7 +44,8 @@ class DoclingChunker:
         """
         pdf_options = PdfPipelineOptions(do_ocr=False)
         self._converter = DocumentConverter(
-            format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_options)}
+            allowed_formats=[f for f in InputFormat if f not in _EXCLUDED_FORMATS],
+            format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_options)},
         )
         tokenizer = HuggingFaceTokenizer(
             tokenizer=AutoTokenizer.from_pretrained(tokenizer_model),
@@ -41,8 +54,19 @@ class DoclingChunker:
         self._chunker = HybridChunker(tokenizer=tokenizer)
 
     def chunk(self, path: Path) -> list[TextChunk]:
-        """Convert the file at path and return its chunks in document order."""
-        document = self._converter.convert(path).document
+        """Convert the file at path and return its chunks in document order.
+
+        Raises:
+            UnsupportedFileError: if Docling does not handle the file's type.
+            ChunkingError: if Docling fails to convert the file.
+        """
+        result = self._converter.convert(path, raises_on_error=False)
+        errors = "; ".join(error.error_message for error in result.errors)
+        if result.status == ConversionStatus.SKIPPED:
+            raise UnsupportedFileError(f"Docling does not support {path.suffix or 'this'} files")
+        if result.status not in (ConversionStatus.SUCCESS, ConversionStatus.PARTIAL_SUCCESS):
+            raise ChunkingError(errors or f"Conversion ended with status {result.status.value}")
+        document = result.document
         doc_chunks = [DocChunk.model_validate(chunk) for chunk in self._chunker.chunk(document)]
         return [
             TextChunk(

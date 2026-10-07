@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import tempfile
 from pathlib import Path
@@ -9,9 +10,9 @@ from typing import Protocol
 
 from core.models import Tender
 from downloader import dce_archive_name
-from indexing.chunker import DoclingChunker
+from indexing.chunker import DoclingChunker, UnsupportedFileError
 from indexing.embedder import Embedder
-from indexing.extractor import extract_archive
+from indexing.extractor import ExtractedFile, extract_archive
 from indexing.models import Chunk, DceFile, DceFileStatus, TextChunk
 from indexing.vector_store import VectorStore
 from persistence.file_storage import DocumentStorage
@@ -85,24 +86,48 @@ class IndexingPipeline:
         self._set_status(key, TenderStatus.CHUNKING)
         with tempfile.TemporaryDirectory(prefix="indexing-", dir=self._work_root) as work_dir:
             archive = self._document_storage.load_document(archive_name)
-            chunked_files = [
-                (extracted, self._chunker.chunk(extracted.local_path))
-                for extracted in extract_archive(archive, Path(work_dir))
+            dce_files = [
+                self._chunk(extracted) for extracted in extract_archive(archive, Path(work_dir))
             ]
         self._set_status(key, TenderStatus.CHUNKED)
 
         self._set_status(key, TenderStatus.EMBEDDING)
-        dce_files = [
-            DceFile(
-                path=extracted.archive_path,
-                file_type=extracted.file_type,
-                status=DceFileStatus.CHUNKED,
-                chunks=self._embed(text_chunks),
-            )
-            for extracted, text_chunks in chunked_files
+        embedded_files = [
+            dataclasses.replace(dce_file, chunks=self._embed(text_chunks))
+            for dce_file, text_chunks in dce_files
         ]
-        self._vector_store.replace_tender_files(tender, dce_files)
+        self._vector_store.replace_tender_files(tender, embedded_files)
         self._set_status(key, TenderStatus.INDEXED)
+
+    def _chunk(self, extracted: ExtractedFile) -> tuple[DceFile, list[TextChunk]]:
+        """Chunk one DCE file, recording rather than raising per-file errors.
+
+        Returns:
+            The DCE file without chunks, and its text chunks (empty unless
+            the file was chunked).
+        """
+        if extracted.local_path is None:
+            status, reason = DceFileStatus.FAILED, extracted.extraction_error
+            text_chunks = []
+        else:
+            try:
+                text_chunks = self._chunker.chunk(extracted.local_path)
+                status, reason = DceFileStatus.CHUNKED, None
+            except UnsupportedFileError as exc:
+                status, reason, text_chunks = DceFileStatus.SKIPPED, str(exc), []
+            except Exception as exc:
+                # A single bad DCE file must never fail the tender.
+                status, reason = DceFileStatus.FAILED, f"{type(exc).__name__}: {exc}"
+                text_chunks = []
+        if reason is not None:
+            logger.warning("%s %s: %s", status.value.capitalize(), extracted.archive_path, reason)
+        dce_file = DceFile(
+            path=extracted.archive_path,
+            file_type=extracted.file_type,
+            status=status,
+            reason=reason,
+        )
+        return dce_file, text_chunks
 
     def _embed(self, text_chunks: list[TextChunk]) -> list[Chunk]:
         vectors = self._embedder.embed([chunk.embedding_text for chunk in text_chunks])
