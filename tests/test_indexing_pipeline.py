@@ -93,40 +93,82 @@ class InMemoryTenderRepository:
 
 
 class FailingTenderRepository(InMemoryTenderRepository):
-    """Raises like a lost database connection on every status update for one tender."""
+    """Raises like a lost database connection on status updates for one tender.
 
-    def __init__(self, tenders: list[tuple], failing_key: tuple) -> None:
+    With failing_status set, only updates to that status fail; with once,
+    only the first such update fails.
+    """
+
+    def __init__(
+        self,
+        tenders: list[tuple],
+        failing_key: tuple,
+        failing_status: TenderStatus | None = None,
+        once: bool = False,
+    ) -> None:
         super().__init__(tenders)
         self._failing_key = failing_key
+        self._failing_status = failing_status
+        self._once = once
+        self._failed = False
 
     def update_status(self, tender_id, organization_acronym, status, last_status=None):
-        if (tender_id, organization_acronym) == self._failing_key:
+        if (
+            (tender_id, organization_acronym) == self._failing_key
+            and self._failing_status in (None, status)
+            and not (self._once and self._failed)
+        ):
+            self._failed = True
             raise RepositoryError("Failed to update tender status: connection lost")
         super().update_status(tender_id, organization_acronym, status, last_status)
 
 
 class InMemoryVectorStore:
+    """DCE files kept as rows, like the dce_files table.
+
+    A replace deletes the tender's rows and inserts the new set in a staged
+    copy, committed only once every insert succeeds.
+    """
+
     def __init__(self) -> None:
-        self.files: dict[tuple, list[DceFile]] = {}
+        self.rows: list[tuple[tuple, DceFile]] = []
+
+    @property
+    def files(self) -> dict[tuple, list[DceFile]]:
+        files: dict[tuple, list[DceFile]] = {}
+        for key, dce_file in self.rows:
+            files.setdefault(key, []).append(dce_file)
+        return files
 
     def replace_tender_files(self, tender: Tender, dce_files: Sequence[DceFile]) -> None:
-        self.files[(tender.tender_id, tender.organization_acronym)] = list(dce_files)
+        key = (tender.tender_id, tender.organization_acronym)
+        staged = [row for row in self.rows if row[0] != key]
+        for dce_file in dce_files:
+            self._insert(staged, key, dce_file)
+        self.rows = staged
+
+    def _insert(self, staged: list, key: tuple, dce_file: DceFile) -> None:
+        staged.append((key, dce_file))
 
     def search(self, query_embedding, embedding_model, limit=10):
         raise NotImplementedError
 
 
 class FailingVectorStore(InMemoryVectorStore):
-    """Rejects the write for one tender, as a failed transaction would: nothing is stored."""
+    """Fails the write for one tender after its first insert, as a broken transaction would.
 
-    def __init__(self, failing_key: tuple) -> None:
+    The failure lands mid-write (old rows deleted, one new row inserted), so
+    nothing of the failed write is committed.
+    """
+
+    def __init__(self, failing_key: tuple | None) -> None:
         super().__init__()
-        self._failing_key = failing_key
+        self.failing_key = failing_key
 
-    def replace_tender_files(self, tender: Tender, dce_files: Sequence[DceFile]) -> None:
-        if (tender.tender_id, tender.organization_acronym) == self._failing_key:
+    def _insert(self, staged: list, key: tuple, dce_file: DceFile) -> None:
+        super()._insert(staged, key, dce_file)
+        if key == self.failing_key:
             raise RepositoryError("Failed to store DCE files: connection lost")
-        super().replace_tender_files(tender, dce_files)
 
 
 def zip_bytes(members: dict[str, bytes]) -> bytes:
@@ -606,3 +648,69 @@ def test_failed_tenders_before_upload_are_not_picked_and_eligible_ones_share_the
     assert repository.history[("A", "ORG")] == []
     assert repository.last_statuses[("A", "ORG")] == TenderStatus.DOWNLOADED
     assert repository.statuses[("D", "ORG")] == TenderStatus.UPLOADED
+
+
+def multi_file_archive() -> bytes:
+    pdf = (FIXTURES / "cps.pdf").read_bytes()
+    return zip_bytes(
+        {
+            "CPS.pdf": pdf,
+            "annexes.zip": zip_bytes({"RC.pdf": pdf}),
+            "plan.dwg": b"AC1027\x00\x00binary drawing\x01\x02",
+        }
+    )
+
+
+def build_reindexed_pipeline(work_root, chunker, vector_store=None):
+    """A tender whose DCE files are stored but whose INDEXED write fails on the first run.
+
+    The tender is left FAILED after CHUNKED with its DCE files in the store,
+    so the next run re-indexes a tender that already has files and chunks.
+    """
+    tenders = [(Tender(tender_id="T1", organization_acronym="ORG"), TenderStatus.UPLOADED)]
+    return build_pipeline(
+        tenders,
+        {"T1_ORG.zip": multi_file_archive()},
+        work_root,
+        chunker,
+        repository=FailingTenderRepository(
+            tenders, failing_key=("T1", "ORG"), failing_status=TenderStatus.INDEXED, once=True
+        ),
+        vector_store=vector_store,
+    )
+
+
+def file_and_chunk_counts(dce_files: list[DceFile]) -> tuple[int, int]:
+    return len(dce_files), sum(len(dce_file.chunks) for dce_file in dce_files)
+
+
+def test_reindexing_a_tender_replaces_its_files_and_chunks_instead_of_duplicating_them(
+    work_root, chunker
+):
+    pipeline, repository, vector_store, _ = build_reindexed_pipeline(work_root, chunker)
+    pipeline.run(limit=1)
+    assert repository.statuses[("T1", "ORG")] == TenderStatus.FAILED
+    first_run_files = vector_store.files[("T1", "ORG")]
+    assert file_and_chunk_counts(first_run_files) == (3, 4)
+
+    pipeline.run(limit=1)
+
+    assert repository.statuses[("T1", "ORG")] == TenderStatus.INDEXED
+    assert vector_store.files[("T1", "ORG")] == first_run_files
+
+
+def test_failure_while_rewriting_a_tender_leaves_its_previous_files_and_chunks_intact(
+    work_root, chunker
+):
+    pipeline, repository, vector_store, _ = build_reindexed_pipeline(
+        work_root, chunker, vector_store=FailingVectorStore(failing_key=None)
+    )
+    pipeline.run(limit=1)
+    first_run_files = vector_store.files[("T1", "ORG")]
+
+    vector_store.failing_key = ("T1", "ORG")
+    pipeline.run(limit=1)
+
+    assert repository.statuses[("T1", "ORG")] == TenderStatus.FAILED
+    assert repository.last_statuses[("T1", "ORG")] == TenderStatus.CHUNKED
+    assert vector_store.files[("T1", "ORG")] == first_run_files

@@ -19,6 +19,7 @@ from .keyword_search import test_keyword_search  # noqa: F401
 from .pagination import test_pagination  # noqa: F401
 from .single_page_row_extraction import test_single_page_row_extraction  # noqa: F401
 from .status_transitions import test_status_transitions  # noqa: F401
+from .vector_store_replace import test_vector_store_replace
 from .vector_store_roundtrip import test_vector_store_roundtrip
 
 
@@ -33,6 +34,7 @@ def main():
         test_status_transitions()
         test_indexing_selection()
         test_vector_store_roundtrip()
+        test_vector_store_replace()
     except Exception:
         logger.error("Integration test failed - see above for details")
         sys.exit(1)
