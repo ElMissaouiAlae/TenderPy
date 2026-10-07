@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import List
 
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from core.models import Tender
 from persistence.database import Database
 from persistence.exceptions import RecordNotFoundError, RepositoryError
 from persistence.mapper import to_domain, to_record
-from persistence.models import TenderRecord, TenderStatus
+from persistence.models import INDEXABLE_LAST_STATUSES, TenderRecord, TenderStatus
 
 
 class TenderRepository:
@@ -203,11 +203,14 @@ class TenderRepository:
         except Exception as exc:
             raise RepositoryError(f"Failed to update tender status: {exc}") from exc
 
-    def find_by_status(self, status: TenderStatus, limit: int) -> List[Tender]:
-        """Return up to `limit` tenders with the given status, oldest record first.
+    def find_for_indexing(self, limit: int) -> List[Tender]:
+        """Return up to `limit` tenders ready to index, oldest record first.
+
+        A tender is ready when it is UPLOADED, or FAILED with a last_status
+        of UPLOADED or later (its DCE archive is in S3, so indexing can be
+        retried).
 
         Args:
-            status: Status to select tenders by.
             limit: Maximum number of tenders to return.
 
         Returns:
@@ -220,13 +223,23 @@ class TenderRepository:
             with self._database.session() as session:
                 stmt = (
                     select(TenderRecord)
-                    .where(TenderRecord.status == status.value)
+                    .where(
+                        or_(
+                            TenderRecord.status == TenderStatus.UPLOADED.value,
+                            and_(
+                                TenderRecord.status == TenderStatus.FAILED.value,
+                                TenderRecord.last_status.in_(
+                                    [status.value for status in INDEXABLE_LAST_STATUSES]
+                                ),
+                            ),
+                        )
+                    )
                     .order_by(TenderRecord.id)
                     .limit(limit)
                 )
                 return [to_domain(record) for record in session.scalars(stmt)]
         except Exception as exc:
-            raise RepositoryError(f"Failed to find tenders by status: {exc}") from exc
+            raise RepositoryError(f"Failed to find tenders to index: {exc}") from exc
 
     def exists(self, tender_id: str, organization_acronym: str) -> bool:
         """Check if a tender exists in the database.

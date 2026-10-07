@@ -7,6 +7,7 @@ import sys
 
 from .config import BASE_URL, logger
 from .date_range_search import test_date_range_search
+from .indexing_selection import test_indexing_selection
 
 # Kept but not invoked here; analyze_results() operates on the JSON files
 # test_keyword_search / test_buyer_search / test_combined_search / test_pagination
@@ -30,6 +31,7 @@ def main():
     try:
         test_date_range_search()   
         test_status_transitions()
+        test_indexing_selection()
         test_vector_store_roundtrip()
     except Exception:
         logger.error("Integration test failed - see above for details")

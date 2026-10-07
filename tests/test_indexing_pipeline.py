@@ -11,6 +11,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from botocore.exceptions import ClientError
 
 from core.models import Tender
 from indexing.chunker import DoclingChunker
@@ -18,8 +19,9 @@ from indexing.embedder import SentenceTransformerEmbedder
 from indexing.models import DceFile, DceFileStatus
 from indexing.pipeline import IndexingPipeline
 from persistence.config import Settings
+from persistence.exceptions import RepositoryError
 from persistence.file_storage import S3DocumentStorage
-from persistence.models import TenderStatus
+from persistence.models import INDEXABLE_LAST_STATUSES, TenderStatus
 
 FIXTURES = Path(__file__).parent / "fixtures" / "indexing"
 EMBEDDING_DIM = Settings(database_url="postgresql://unused").embedding_dim
@@ -35,7 +37,14 @@ class FakeS3Client:
 
     def get_object(self, Bucket: str, Key: str) -> dict:
         self.work_root_listings.append(sorted(p.name for p in self._work_root.iterdir()))
+        if Key not in self._objects:
+            raise ClientError(
+                {"Error": {"Code": "NoSuchKey", "Message": "Not found"}}, "GetObject"
+            )
         return {"Body": BytesIO(self._objects[Key])}
+
+    def put(self, key: str, content: bytes) -> None:
+        self._objects[key] = content
 
 
 class FakeEmbedder:
@@ -52,22 +61,48 @@ class FakeEmbedder:
 
 
 class InMemoryTenderRepository:
-    def __init__(self, tenders: list[tuple[Tender, TenderStatus]]) -> None:
-        self._tenders = [tender for tender, _ in tenders]
-        self.statuses = {self._key(tender): status for tender, status in tenders}
-        self.history = {self._key(tender): [] for tender, _ in tenders}
+    """Tenders in record order; each entry is (tender, status) or (tender, FAILED, last_status)."""
+
+    def __init__(self, tenders: list[tuple]) -> None:
+        self._tenders = [tender for tender, *_ in tenders]
+        self.statuses = {self._key(tender): status for tender, status, *_ in tenders}
+        self.last_statuses = {
+            self._key(tender): last[0] if last else None for tender, _, *last in tenders
+        }
+        self.history = {self._key(tender): [] for tender, *_ in tenders}
 
     @staticmethod
     def _key(tender: Tender) -> tuple:
         return tender.tender_id, tender.organization_acronym
 
-    def find_by_status(self, status: TenderStatus, limit: int) -> list[Tender]:
-        matching = [t for t in self._tenders if self.statuses[self._key(t)] == status]
+    def find_for_indexing(self, limit: int) -> list[Tender]:
+        matching = [t for t in self._tenders if self._indexable(self._key(t))]
         return matching[:limit]
 
+    def _indexable(self, key: tuple) -> bool:
+        status = self.statuses[key]
+        return status == TenderStatus.UPLOADED or (
+            status == TenderStatus.FAILED and self.last_statuses[key] in INDEXABLE_LAST_STATUSES
+        )
+
     def update_status(self, tender_id, organization_acronym, status, last_status=None):
-        self.statuses[(tender_id, organization_acronym)] = status
-        self.history[(tender_id, organization_acronym)].append(status)
+        key = (tender_id, organization_acronym)
+        self.statuses[key] = status
+        self.last_statuses[key] = last_status
+        self.history[key].append(status)
+
+
+class FailingTenderRepository(InMemoryTenderRepository):
+    """Raises like a lost database connection on every status update for one tender."""
+
+    def __init__(self, tenders: list[tuple], failing_key: tuple) -> None:
+        super().__init__(tenders)
+        self._failing_key = failing_key
+
+    def update_status(self, tender_id, organization_acronym, status, last_status=None):
+        if (tender_id, organization_acronym) == self._failing_key:
+            raise RepositoryError("Failed to update tender status: connection lost")
+        super().update_status(tender_id, organization_acronym, status, last_status)
 
 
 class InMemoryVectorStore:
@@ -79,6 +114,19 @@ class InMemoryVectorStore:
 
     def search(self, query_embedding, embedding_model, limit=10):
         raise NotImplementedError
+
+
+class FailingVectorStore(InMemoryVectorStore):
+    """Rejects the write for one tender, as a failed transaction would: nothing is stored."""
+
+    def __init__(self, failing_key: tuple) -> None:
+        super().__init__()
+        self._failing_key = failing_key
+
+    def replace_tender_files(self, tender: Tender, dce_files: Sequence[DceFile]) -> None:
+        if (tender.tender_id, tender.organization_acronym) == self._failing_key:
+            raise RepositoryError("Failed to store DCE files: connection lost")
+        super().replace_tender_files(tender, dce_files)
 
 
 def zip_bytes(members: dict[str, bytes]) -> bytes:
@@ -101,13 +149,15 @@ def work_root(tmp_path):
     return root
 
 
-def build_pipeline(tenders, objects, work_root, chunker, embedder=None):
-    repository = InMemoryTenderRepository(tenders)
+def build_pipeline(
+    tenders, objects, work_root, chunker, embedder=None, repository=None, vector_store=None
+):
+    repository = repository or InMemoryTenderRepository(tenders)
     s3_client = FakeS3Client(objects, work_root)
     storage = S3DocumentStorage(
         Settings(database_url="postgresql://unused", s3_bucket_name="bucket"), s3_client
     )
-    vector_store = InMemoryVectorStore()
+    vector_store = vector_store or InMemoryVectorStore()
     pipeline = IndexingPipeline(
         repository=repository,
         document_storage=storage,
@@ -390,3 +440,169 @@ def test_unreadable_members_are_failed_while_their_siblings_are_still_chunked(
     }
     assert files["CCAP.pdf"].reason
     assert files["annexes.zip/BPU.pdf"].reason
+
+
+SUCCESS_HISTORY = [
+    TenderStatus.CHUNKING,
+    TenderStatus.CHUNKED,
+    TenderStatus.EMBEDDING,
+    TenderStatus.INDEXED,
+]
+
+
+def two_tenders():
+    return [
+        (Tender(tender_id="T1", organization_acronym="ORG"), TenderStatus.UPLOADED),
+        (Tender(tender_id="T2", organization_acronym="ORG"), TenderStatus.UPLOADED),
+    ]
+
+
+def test_s3_failure_fails_the_tender_with_last_status_uploaded_and_the_batch_continues(
+    work_root, chunker
+):
+    pipeline, repository, vector_store, _ = build_pipeline(
+        two_tenders(), {"T2_ORG.zip": single_pdf_archive()}, work_root, chunker
+    )
+
+    pipeline.run(limit=2)
+
+    assert repository.statuses[("T1", "ORG")] == TenderStatus.FAILED
+    assert repository.last_statuses[("T1", "ORG")] == TenderStatus.UPLOADED
+    assert ("T1", "ORG") not in vector_store.files
+    assert repository.history[("T2", "ORG")] == SUCCESS_HISTORY
+    assert repository.last_statuses[("T2", "ORG")] is None
+    assert list(work_root.iterdir()) == []
+
+
+def test_unreadable_top_level_archive_fails_the_tender_with_last_status_uploaded(
+    work_root, chunker
+):
+    pipeline, repository, vector_store, _ = build_pipeline(
+        two_tenders(),
+        {"T1_ORG.zip": b"this is not a zip", "T2_ORG.zip": single_pdf_archive()},
+        work_root,
+        chunker,
+    )
+
+    pipeline.run(limit=2)
+
+    assert repository.statuses[("T1", "ORG")] == TenderStatus.FAILED
+    assert repository.last_statuses[("T1", "ORG")] == TenderStatus.UPLOADED
+    assert ("T1", "ORG") not in vector_store.files
+    assert repository.statuses[("T2", "ORG")] == TenderStatus.INDEXED
+    assert list(work_root.iterdir()) == []
+
+
+def test_database_failure_while_storing_fails_the_tender_with_last_status_chunked(
+    work_root, chunker
+):
+    archive = single_pdf_archive()
+    pipeline, repository, vector_store, _ = build_pipeline(
+        two_tenders(),
+        {"T1_ORG.zip": archive, "T2_ORG.zip": archive},
+        work_root,
+        chunker,
+        vector_store=FailingVectorStore(failing_key=("T1", "ORG")),
+    )
+
+    pipeline.run(limit=2)
+
+    assert repository.history[("T1", "ORG")] == [
+        TenderStatus.CHUNKING,
+        TenderStatus.CHUNKED,
+        TenderStatus.EMBEDDING,
+        TenderStatus.FAILED,
+    ]
+    assert repository.last_statuses[("T1", "ORG")] == TenderStatus.CHUNKED
+    assert ("T1", "ORG") not in vector_store.files
+    assert repository.statuses[("T2", "ORG")] == TenderStatus.INDEXED
+    assert list(work_root.iterdir()) == []
+
+
+def test_tender_whose_status_cannot_be_written_does_not_stop_the_batch(work_root, chunker):
+    archive = single_pdf_archive()
+    tenders = two_tenders()
+    pipeline, repository, _, _ = build_pipeline(
+        tenders,
+        {"T1_ORG.zip": archive, "T2_ORG.zip": archive},
+        work_root,
+        chunker,
+        repository=FailingTenderRepository(tenders, failing_key=("T1", "ORG")),
+    )
+
+    pipeline.run(limit=2)
+
+    assert repository.statuses[("T1", "ORG")] == TenderStatus.UPLOADED
+    assert repository.statuses[("T2", "ORG")] == TenderStatus.INDEXED
+    assert list(work_root.iterdir()) == []
+
+
+def test_failed_tender_is_retried_on_the_next_run_and_its_last_status_cleared(
+    work_root, chunker
+):
+    pipeline, repository, _, s3_client = build_pipeline(
+        [(Tender(tender_id="T1", organization_acronym="ORG"), TenderStatus.UPLOADED)],
+        {},
+        work_root,
+        chunker,
+    )
+    pipeline.run(limit=1)
+    assert repository.last_statuses[("T1", "ORG")] == TenderStatus.UPLOADED
+
+    # The archive is back in S3 by the next run.
+    s3_client.put("T1_ORG.zip", single_pdf_archive())
+    repository.history[("T1", "ORG")].clear()
+    pipeline.run(limit=1)
+
+    assert repository.history[("T1", "ORG")] == SUCCESS_HISTORY
+    assert repository.last_statuses[("T1", "ORG")] is None
+
+
+@pytest.mark.parametrize(
+    "last_status",
+    [
+        TenderStatus.UPLOADED,
+        TenderStatus.CHUNKING,
+        TenderStatus.CHUNKED,
+        TenderStatus.EMBEDDING,
+    ],
+)
+def test_failed_tender_from_upload_onwards_is_eligible_and_restarts_from_the_download(
+    work_root, chunker, last_status
+):
+    pipeline, repository, vector_store, _ = build_pipeline(
+        [(Tender(tender_id="T1", organization_acronym="ORG"), TenderStatus.FAILED, last_status)],
+        {"T1_ORG.zip": single_pdf_archive()},
+        work_root,
+        chunker,
+    )
+
+    pipeline.run(limit=1)
+
+    assert repository.history[("T1", "ORG")] == SUCCESS_HISTORY
+    assert repository.last_statuses[("T1", "ORG")] is None
+    assert vector_store.files[("T1", "ORG")]
+
+
+def test_failed_tenders_before_upload_are_not_picked_and_eligible_ones_share_the_limit(
+    work_root, chunker
+):
+    tenders = [
+        (Tender(tender_id="A", organization_acronym="ORG"), TenderStatus.FAILED,
+         TenderStatus.DOWNLOADED),
+        (Tender(tender_id="B", organization_acronym="ORG"), TenderStatus.FAILED,
+         TenderStatus.CHUNKED),
+        (Tender(tender_id="C", organization_acronym="ORG"), TenderStatus.UPLOADED),
+        (Tender(tender_id="D", organization_acronym="ORG"), TenderStatus.UPLOADED),
+    ]
+    archive = single_pdf_archive()
+    pipeline, repository, vector_store, _ = build_pipeline(
+        tenders, {f"{key}_ORG.zip": archive for key in "ABCD"}, work_root, chunker
+    )
+
+    pipeline.run(limit=2)
+
+    assert list(vector_store.files) == [("B", "ORG"), ("C", "ORG")]
+    assert repository.history[("A", "ORG")] == []
+    assert repository.last_statuses[("A", "ORG")] == TenderStatus.DOWNLOADED
+    assert repository.statuses[("D", "ORG")] == TenderStatus.UPLOADED

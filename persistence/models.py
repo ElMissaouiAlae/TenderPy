@@ -44,6 +44,19 @@ class TenderStatus(str, Enum):
     FAILED = "FAILED"
 
 
+# A FAILED tender whose last_status is UPLOADED or later still has its DCE
+# archive in S3, so indexing can pick it up again (from the download).
+INDEXABLE_LAST_STATUSES = frozenset(
+    {
+        TenderStatus.UPLOADED,
+        TenderStatus.CHUNKING,
+        TenderStatus.CHUNKED,
+        TenderStatus.EMBEDDING,
+        TenderStatus.INDEXED,
+    }
+)
+
+
 class TenderRecord(Base):
     """ORM model representing a tender record in the database.
 
