@@ -104,8 +104,9 @@ def test_date_range_search():
                         last_status=TenderStatus.DOWNLOADING,
                     )
                     continue
+                # download() also saves the archive to S3, so the DCE is uploaded here.
                 repository.update_status(
-                    tender.tender_id, tender.organization_acronym, TenderStatus.DOWNLOADED
+                    tender.tender_id, tender.organization_acronym, TenderStatus.UPLOADED
                 )
             expected_verified = min(BATCH_SIZE, len(tenders))
             logger.info(
