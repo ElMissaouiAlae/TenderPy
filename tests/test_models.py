@@ -99,9 +99,18 @@ def test_update_state_from_html_updates_existing_state():
     assert session.state.prado_page_state == "new-state-value"
 
 
-def test_tender_status_includes_indexing_statuses():
+def test_tender_status_goes_straight_from_downloading_to_uploaded():
     from persistence.models import TenderStatus
 
-    assert TenderStatus.CHUNKING.value == "CHUNKING"
-    assert TenderStatus.CHUNKED.value == "CHUNKED"
-    assert TenderStatus.EMBEDDING.value == "EMBEDDING"
+    # download() fetches the DCE archive and saves it to document storage in
+    # one step, so nothing sits between DOWNLOADING and UPLOADED.
+    assert [status.value for status in TenderStatus] == [
+        "DISCOVERED",
+        "DOWNLOADING",
+        "UPLOADED",
+        "CHUNKING",
+        "CHUNKED",
+        "EMBEDDING",
+        "INDEXED",
+        "FAILED",
+    ]

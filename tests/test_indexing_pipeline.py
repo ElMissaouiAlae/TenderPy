@@ -631,7 +631,7 @@ def test_failed_tenders_before_upload_are_not_picked_and_eligible_ones_share_the
 ):
     tenders = [
         (Tender(tender_id="A", organization_acronym="ORG"), TenderStatus.FAILED,
-         TenderStatus.DOWNLOADED),
+         TenderStatus.DOWNLOADING),
         (Tender(tender_id="B", organization_acronym="ORG"), TenderStatus.FAILED,
          TenderStatus.CHUNKED),
         (Tender(tender_id="C", organization_acronym="ORG"), TenderStatus.UPLOADED),
@@ -646,7 +646,7 @@ def test_failed_tenders_before_upload_are_not_picked_and_eligible_ones_share_the
 
     assert list(vector_store.files) == [("B", "ORG"), ("C", "ORG")]
     assert repository.history[("A", "ORG")] == []
-    assert repository.last_statuses[("A", "ORG")] == TenderStatus.DOWNLOADED
+    assert repository.last_statuses[("A", "ORG")] == TenderStatus.DOWNLOADING
     assert repository.statuses[("D", "ORG")] == TenderStatus.UPLOADED
 
 

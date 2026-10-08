@@ -37,7 +37,7 @@ def test_indexing_selection():
         cases = [
             ("UPLOADED", TenderStatus.UPLOADED, None),
             ("FAILED-CHUNKED", TenderStatus.FAILED, TenderStatus.CHUNKED),
-            ("FAILED-DOWNLOADED", TenderStatus.FAILED, TenderStatus.DOWNLOADED),
+            ("FAILED-DOWNLOADING", TenderStatus.FAILED, TenderStatus.DOWNLOADING),
             ("DISCOVERED", TenderStatus.DISCOVERED, None),
             ("FAILED-UPLOADED", TenderStatus.FAILED, TenderStatus.UPLOADED),
         ]

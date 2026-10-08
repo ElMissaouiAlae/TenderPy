@@ -12,13 +12,12 @@ The single zip file containing a tender's consultation documents, fetched via `T
 _Avoid_: document (ambiguous between "the archive" and "a file inside it" — always say "DCE archive" for the former)
 
 **Status**:
-The current step a tender's processing has reached, stored on `TenderRecord.status` (`TenderStatus` enum): `DISCOVERED → DOWNLOADING → DOWNLOADED → UPLOADING → UPLOADED → INDEXED`, or `FAILED` if any step errors.
+The current step a tender's processing has reached, stored on `TenderRecord.status` (`TenderStatus` enum): `DISCOVERED → DOWNLOADING → UPLOADED → INDEXED`, or `FAILED` if any step errors.
 
 - `DISCOVERED`: the tender row exists — written immediately when the tender is found, before download starts.
-- `DOWNLOADING` / `DOWNLOADED`: fetching the DCE archive to local storage.
-- `UPLOADING` / `UPLOADED`: pushing the DCE archive to S3.
+- `DOWNLOADING` / `UPLOADED`: fetching the DCE archive and saving it to document storage (S3), in one step.
 - `INDEXED`: the terminal, fully-processed state — the final save/commit, always after download and upload.
 - `FAILED`: a step errored; see **Last status** below for how resume works.
 
 **Last status**:
-`TenderRecord.last_status` — nullable field that, only while `status = FAILED`, holds the last status the tender *successfully* completed (e.g. `DOWNLOADED` means "resume from upload"). Cleared back to null the moment a retry starts moving the tender forward again. Has no meaning when `status != FAILED`.
+`TenderRecord.last_status` — nullable field that, only while `status = FAILED`, holds the last status the tender *successfully* completed (e.g. `UPLOADED` means "resume from indexing"). Cleared back to null the moment a retry starts moving the tender forward again. Has no meaning when `status != FAILED`.
