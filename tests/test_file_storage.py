@@ -1,5 +1,6 @@
 """Tests for document storage adapters."""
 
+from io import BytesIO
 from unittest.mock import ANY, Mock
 
 import pytest
@@ -27,7 +28,9 @@ def test_local_document_storage_saves_binary_documents(tmp_path):
 def test_storage_providers_follow_document_storage_interface():
     local_storage = LocalDocumentStorage("/tmp")
     s3_storage = S3DocumentStorage(
-        Settings(database_url="postgresql://user:pass@localhost/db", s3_bucket_name="bucket"),
+        Settings(
+            database_url="postgresql://user:pass@localhost/db", s3_bucket_name="bucket"
+        ),
         Mock(),
     )
 
@@ -60,3 +63,33 @@ def test_s3_document_storage_requires_a_configured_bucket():
 
     with pytest.raises(ConfigurationError, match="S3_BUCKET_NAME"):
         storage.save_document("tender-123.zip", b"archive-bytes")
+
+
+def test_s3_document_storage_loads_document_from_configured_bucket():
+    settings = Settings(
+        database_url="postgresql://user:pass@localhost/db",
+        s3_bucket_name="tenders-bucket",
+    )
+    s3_client = Mock()
+    s3_client.get_object.return_value = {"Body": BytesIO(b"archive-bytes")}
+    storage = S3DocumentStorage(settings, s3_client)
+
+    content = storage.load_document("tender-123.zip")
+
+    assert content == b"archive-bytes"
+    s3_client.get_object.assert_called_once_with(
+        Bucket="tenders-bucket",
+        Key="tender-123.zip",
+    )
+
+
+def test_s3_document_storage_load_requires_a_configured_bucket():
+    settings = Settings(database_url="postgresql://user:pass@localhost/db")
+    storage = S3DocumentStorage(settings, Mock())
+
+    with pytest.raises(ConfigurationError, match="S3_BUCKET_NAME"):
+        storage.load_document("tender-123.zip")
+
+
+def test_document_storage_interface_exposes_loading():
+    assert hasattr(DocumentStorage, "load_document")

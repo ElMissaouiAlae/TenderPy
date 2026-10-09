@@ -24,6 +24,16 @@ class DocumentStorage(Protocol):
             content: Document data to persist.
         """
 
+    def load_document(self, document_name: str) -> bytes:
+        """Load document bytes stored under the supplied document name.
+
+        Args:
+            document_name: Name or object key of the document to load.
+
+        Returns:
+            The stored document bytes.
+        """
+
 
 class LocalDocumentStorage:
     """Store documents on the local filesystem.
@@ -101,12 +111,29 @@ class S3DocumentStorage:
         Raises:
             ConfigurationError: If no S3 bucket is configured.
         """
+        self._s3.upload_fileobj(
+            Fileobj=BytesIO(content),
+            Bucket=self._bucket_name(),
+            Key=document_name,
+        )
+
+    def load_document(self, document_name: str) -> bytes:
+        """Download document bytes from the configured S3 bucket.
+
+        Args:
+            document_name: S3 object key of the document to load.
+
+        Returns:
+            The stored document bytes.
+
+        Raises:
+            ConfigurationError: If no S3 bucket is configured.
+        """
+        response = self._s3.get_object(Bucket=self._bucket_name(), Key=document_name)
+        return response["Body"].read()
+
+    def _bucket_name(self) -> str:
         bucket_name = self._settings.s3_bucket_name
         if not bucket_name:
             raise ConfigurationError("S3_BUCKET_NAME environment variable is required")
-
-        self._s3.upload_fileobj(
-            Fileobj=BytesIO(content),
-            Bucket=bucket_name,
-            Key=document_name,
-        )
+        return bucket_name

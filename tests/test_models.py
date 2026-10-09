@@ -37,7 +37,9 @@ def test_update_state_from_html_raises_prado_state_error_when_missing_input():
     html = "<html><body></body></html>"
     session = SearchSession(http_client=object())
 
-    with pytest.raises(PradoStateError, match="Required PRADO field 'PRADO_PAGESTATE' not found"):
+    with pytest.raises(
+        PradoStateError, match="Required PRADO field 'PRADO_PAGESTATE' not found"
+    ):
         session._update_state_from_html(html)
 
 
@@ -61,7 +63,9 @@ def test_update_state_from_html_raises_html_parsing_error_when_bs4_missing(monke
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    with pytest.raises(HtmlParsingError, match="BeautifulSoup is required to parse PRADO state"):
+    with pytest.raises(
+        HtmlParsingError, match="BeautifulSoup is required to parse PRADO state"
+    ):
         session._update_state_from_html(html)
 
 
@@ -93,3 +97,20 @@ def test_update_state_from_html_updates_existing_state():
     session._update_state_from_html(html)
 
     assert session.state.prado_page_state == "new-state-value"
+
+
+def test_tender_status_goes_straight_from_downloading_to_uploaded():
+    from persistence.models import TenderStatus
+
+    # download() fetches the DCE archive and saves it to document storage in
+    # one step, so nothing sits between DOWNLOADING and UPLOADED.
+    assert [status.value for status in TenderStatus] == [
+        "DISCOVERED",
+        "DOWNLOADING",
+        "UPLOADED",
+        "CHUNKING",
+        "CHUNKED",
+        "EMBEDDING",
+        "INDEXED",
+        "FAILED",
+    ]
