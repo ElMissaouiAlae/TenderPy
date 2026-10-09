@@ -18,6 +18,13 @@ _Avoid_: document, attachment
 **Chunk**:
 A contiguous piece of a DCE file's text, carrying enough metadata (tender, DCE file, location within the file) to be cited back to its source. Chunks are only persisted once embedded.
 
+**Query**:
+The free-text question a user searches the indexed chunks with. Embedded with the same model as the chunks it is compared against.
+
+**Search hit**:
+A chunk returned for a query, carrying its citation (tender, DCE file, pages, headings) and its similarity score. A query can be scoped to a single tender or run across all tenders.
+_Avoid_: result, match, retrieved chunk, document
+
 **Status**:
 The current step a tender's processing has reached, stored on `TenderRecord.status` (`TenderStatus` enum): `DISCOVERED → DOWNLOADING → UPLOADED → CHUNKING → CHUNKED → EMBEDDING → INDEXED`, or `FAILED` if any step errors.
 
@@ -25,7 +32,7 @@ The current step a tender's processing has reached, stored on `TenderRecord.stat
 - `DOWNLOADING` / `UPLOADED`: fetching the DCE archive and saving it to document storage (S3), in one step.
 - `CHUNKING` / `CHUNKED`: splitting the tender's DCE files into chunks.
 - `EMBEDDING`: embedding chunks and storing them in the vector store.
-- `INDEXED`: the terminal state — every chunk of the tender is embedded and searchable.
+- `INDEXED`: the terminal state — the tender's latest chunks are embedded and stored. Searchability does not depend on status: any chunk in the store can be returned as a search hit, including chunks of a tender that later failed a re-index.
 - `FAILED`: a step errored; see **Last status** below for how resume works.
 
 **Last status**:
