@@ -47,3 +47,5 @@ htmlcov/
 
 # Lock files
 uv.lock
+
+.DS_Store
