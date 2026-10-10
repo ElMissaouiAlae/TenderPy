@@ -13,6 +13,7 @@ from .indexing_selection import test_indexing_selection
 from .status_transitions import test_status_transitions
 from .vector_store_replace import test_vector_store_replace
 from .vector_store_roundtrip import test_vector_store_roundtrip
+from .vector_store_scoped_search import test_vector_store_scoped_search
 
 
 def main():
@@ -27,6 +28,7 @@ def main():
         test_indexing_selection()
         test_vector_store_roundtrip()
         test_vector_store_replace()
+        test_vector_store_scoped_search()
     except Exception:
         logger.error("Integration test failed - see above for details")
         sys.exit(1)

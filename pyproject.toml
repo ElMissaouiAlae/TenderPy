@@ -30,4 +30,4 @@ dev = [
 pythonpath = ["."]
 
 [tool.setuptools.packages.find]
-include = ["core*", "discovery*", "persistence*", "indexing*"]
+include = ["core*", "discovery*", "persistence*", "indexing*", "retrieval*"]
