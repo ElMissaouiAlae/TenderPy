@@ -9,13 +9,16 @@ from typing import ClassVar
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
+    ColumnElement,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    and_,
     func,
+    or_,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -102,6 +105,26 @@ class TenderRecord(Base):
 
     __table_args__: ClassVar[tuple] = (
         Index("ix_tender_records_tender_id_org_acronym", "tender_id", "organization_acronym", unique=True),
+    )
+
+
+def failed_after_upload() -> ColumnElement[bool]:
+    """SQL condition: the tender FAILED after its DCE archive was uploaded."""
+    return and_(
+        TenderRecord.status == TenderStatus.FAILED.value,
+        TenderRecord.last_status.in_([status.value for status in INDEXABLE_LAST_STATUSES]),
+    )
+
+
+def has_dce_archive() -> ColumnElement[bool]:
+    """SQL condition: the tender's DCE archive is in document storage.
+
+    True once the tender has reached UPLOADED: its status is UPLOADED or
+    later, or it FAILED after upload.
+    """
+    return or_(
+        TenderRecord.status.in_([status.value for status in INDEXABLE_LAST_STATUSES]),
+        failed_after_upload(),
     )
 
 

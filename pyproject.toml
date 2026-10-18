@@ -18,10 +18,13 @@ dependencies = [
     "docling>=2.0.0",
     "sentence-transformers>=3.0.0",
     "pgvector>=0.4.0",
+    "fastapi>=0.146.0",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=8.0.0",
     "ruff>=0.16.2",
 ]
@@ -30,4 +33,4 @@ dev = [
 pythonpath = ["."]
 
 [tool.setuptools.packages.find]
-include = ["core*", "discovery*", "persistence*", "indexing*"]
+include = ["core*", "discovery*", "persistence*", "indexing*", "api*"]

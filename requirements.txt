@@ -10,3 +10,6 @@ ruff>=0.16.2
 docling>=2.0.0
 sentence-transformers>=3.0.0
 pgvector>=0.4.0
+fastapi>=0.146.0
+uvicorn[standard]>=0.54.0
+httpx>=0.28.1
