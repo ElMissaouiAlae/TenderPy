@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 
 from persistence.database import Database
 from persistence.exceptions import RepositoryError
@@ -61,7 +61,8 @@ class PostgresTenderLookup:
         """Return a page of tenders that have a DCE archive.
 
         Publication dates are stored as DD/MM/YYYY strings, so they are
-        parsed for ordering; tenders without one come last.
+        parsed for ordering; tenders without one, or with one in another
+        format, come last.
 
         Args:
             limit: Maximum number of tenders to return.
@@ -79,7 +80,14 @@ class PostgresTenderLookup:
                     select(TenderRecord)
                     .where(has_dce_archive())
                     .order_by(
-                        func.to_date(TenderRecord.publication_date, "DD/MM/YYYY")
+                        case(
+                            (
+                                TenderRecord.publication_date.regexp_match(
+                                    r"^\d{2}/\d{2}/\d{4}$"
+                                ),
+                                func.to_date(TenderRecord.publication_date, "DD/MM/YYYY"),
+                            )
+                        )
                         .desc()
                         .nulls_last(),
                         TenderRecord.id,

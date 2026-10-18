@@ -3,6 +3,9 @@
 
 const API_BASE = "/api";
 
+// Mirrors MAX_LIST_LIMIT in api/app.py.
+export const MAX_LIST_LIMIT = 200;
+
 export interface TenderSummary {
   id: number;
   reference_number: string | null;

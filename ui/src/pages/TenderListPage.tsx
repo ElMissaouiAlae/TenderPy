@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { listTenders, type TenderSummary } from "../api/client";
+import { listTenders, MAX_LIST_LIMIT, type TenderSummary } from "../api/client";
 
 const MAX_OBJECT_LENGTH = 120;
 
@@ -19,7 +19,8 @@ export function TenderListPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    listTenders({}, controller.signal)
+    // No pagination controls yet, so ask for as many as the API allows.
+    listTenders({ limit: MAX_LIST_LIMIT }, controller.signal)
       .then((tenders) => setState({ kind: "loaded", tenders }))
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
