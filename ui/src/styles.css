@@ -3,6 +3,8 @@
 :root {
   --accent: #6a4be0;
   --accent-hover: #5b3cc4;
+  --accent-soft: #ede9fe;
+  --accent-strong: #4c1d95;
   --bg: #f8fafc;
   --surface: #ffffff;
   --surface-muted: #f1f5f9;
@@ -225,8 +227,151 @@ a {
   font-weight: 600;
 }
 
+.tender-table__row {
+  position: relative;
+}
+
+.tender-table__row:hover {
+  background: var(--surface-muted);
+}
+
+.tender-table__link {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* Stretches the link over its row, so the whole row is the click target. */
+.tender-table__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.tender-table__link:focus-visible {
+  outline: none;
+}
+
+.tender-table__row:has(.tender-table__link:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .nowrap {
   white-space: nowrap;
+}
+
+.placeholder {
+  color: var(--muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-size);
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.tender-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.tender-detail > .back-link {
+  align-self: flex-start;
+}
+
+.tender-detail__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.main .tender-detail__title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.tender-detail__meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pill {
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pill--accent {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 14px;
+  border-radius: var(--radius-button);
+  background: var(--bg);
+}
+
+.fact dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fact dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 /* Phone width: the sidebar becomes a bar above the page and the collapse
@@ -282,5 +427,9 @@ a {
 
   .main {
     padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .main .tender-detail__title {
+    font-size: 26px;
   }
 }

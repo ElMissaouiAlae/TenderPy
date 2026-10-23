@@ -1,8 +1,8 @@
-"""Test PostgresTenderLookup.list_with_dce_archive against a real Postgres database."""
+"""Test PostgresTenderLookup against a real Postgres database."""
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from core.models import Tender
 from persistence import Database, Settings, TenderRecord, TenderRepository, TenderStatus
@@ -14,10 +14,11 @@ ORGANIZATION_ACRONYM = "TENDER-LOOKUP-TEST-ORG"
 
 
 def test_tender_lookup():
-    """Test which tenders list_with_dce_archive returns.
+    """Test which tenders list_with_dce_archive and get_with_dce_archive return.
 
     Saves tenders in every relevant state, then checks that only those that
-    reached UPLOADED (including FAILED after upload) are listed.
+    reached UPLOADED (including FAILED after upload) are listed and can be
+    fetched by id.
 
     Raises on any failure instead of swallowing it - callers must not treat
     a caught exception here as a passing run.
@@ -74,6 +75,31 @@ def test_tender_lookup():
         logger.info(f"Listed with a DCE archive: {sorted(listed)}")
         if listed != expected:
             raise AssertionError(f"Expected {sorted(expected)}, got {sorted(listed)}")
+
+        with database.session() as session:
+            ids = dict(
+                session.execute(
+                    select(TenderRecord.reference_number, TenderRecord.id).where(
+                        TenderRecord.organization_acronym == ORGANIZATION_ACRONYM,
+                        TenderRecord.reference_number.startswith(f"LOOKUP-{run_id}-"),
+                    )
+                ).all()
+            )
+        fetched = {
+            reference_number
+            for reference_number, id in ids.items()
+            if lookup.get_with_dce_archive(id) is not None
+        }
+        logger.info(f"Fetched by id with a DCE archive: {sorted(fetched)}")
+        if fetched != expected:
+            raise AssertionError(f"Expected {sorted(expected)} by id, got {sorted(fetched)}")
+
+        detail = lookup.get_with_dce_archive(ids[f"LOOKUP-{run_id}-UPLOADED"])
+        if detail is None or (detail.tender_id, detail.organization_acronym) != (
+            f"LOOKUP-{run_id}-UPLOADED",
+            ORGANIZATION_ACRONYM,
+        ):
+            raise AssertionError(f"Unexpected detail for the UPLOADED tender: {detail}")
 
         logger.info("Tender lookup verified successfully")
     finally:

@@ -6,22 +6,28 @@ decided by the lookup and checked against the real database in
 integration_tests/tender_lookup.py.
 """
 
+from collections.abc import Sequence
+
 import pytest
 from fastapi.testclient import TestClient
 
 from api.app import DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, create_app
 from persistence.file_storage import LocalDocumentStorage
-from persistence.tender_lookup import TenderSummary
+from persistence.tender_lookup import TenderDetail, TenderSummary
 
 
 class InMemoryTenderLookup:
-    """Holds tenders that have a DCE archive, in list order."""
+    """Holds tenders that have a DCE archive: summaries in list order, details by id."""
 
-    def __init__(self, tenders: list[TenderSummary]) -> None:
-        self._tenders = tenders
+    def __init__(self, tenders: Sequence[TenderSummary], details: Sequence[TenderDetail]) -> None:
+        self._tenders = list(tenders)
+        self._details = {detail.id: detail for detail in details}
 
     def list_with_dce_archive(self, limit: int, offset: int) -> list[TenderSummary]:
         return self._tenders[offset : offset + limit]
+
+    def get_with_dce_archive(self, id: int) -> TenderDetail | None:
+        return self._details.get(id)
 
 
 def summary(id: int) -> TenderSummary:
@@ -34,11 +40,29 @@ def summary(id: int) -> TenderSummary:
     )
 
 
+def detail(id: int) -> TenderDetail:
+    return TenderDetail(
+        id=id,
+        tender_id=f"T-{id}",
+        organization_acronym="ORG",
+        reference_number=f"REF-{id}",
+        tender_object=f"Object {id}",
+        public_buyer=f"Buyer {id}",
+        location="Casablanca",
+        category="Travaux",
+        procurement_type="Appel d'offres ouvert",
+        publication_date="03/10/2026",
+        tender_end_date="04/11/2026 10:00",
+    )
+
+
 @pytest.fixture
 def make_client(tmp_path):
-    def make(tenders: list[TenderSummary]) -> TestClient:
+    def make(
+        tenders: Sequence[TenderSummary] = (), details: Sequence[TenderDetail] = ()
+    ) -> TestClient:
         app = create_app(
-            tender_lookup=InMemoryTenderLookup(tenders),
+            tender_lookup=InMemoryTenderLookup(tenders, details),
             document_storage=LocalDocumentStorage(tmp_path),
         )
         return TestClient(app)
@@ -102,3 +126,32 @@ def test_list_rejects_out_of_range_paging(make_client, params):
     response = client.get("/tenders", params=params)
 
     assert response.status_code == 422
+
+
+def test_detail_returns_the_detail_fields_only(make_client):
+    client = make_client(details=[detail(3)])
+
+    response = client.get("/tenders/3")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": 3,
+        "tender_id": "T-3",
+        "organization_acronym": "ORG",
+        "reference_number": "REF-3",
+        "tender_object": "Object 3",
+        "public_buyer": "Buyer 3",
+        "location": "Casablanca",
+        "category": "Travaux",
+        "procurement_type": "Appel d'offres ouvert",
+        "publication_date": "03/10/2026",
+        "tender_end_date": "04/11/2026 10:00",
+    }
+
+
+def test_detail_is_not_found_when_the_lookup_has_no_such_tender(make_client):
+    client = make_client(details=[detail(3)])
+
+    response = client.get("/tenders/4")
+
+    assert response.status_code == 404

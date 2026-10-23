@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
 from persistence.file_storage import DocumentStorage
@@ -21,6 +21,24 @@ class TenderSummaryResponse(BaseModel):
     reference_number: str | None
     tender_object: str | None
     public_buyer: str | None
+    tender_end_date: str | None
+
+
+class TenderDetailResponse(BaseModel):
+    """A tender as shown on its own page."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tender_id: str | None
+    organization_acronym: str | None
+    reference_number: str | None
+    tender_object: str | None
+    public_buyer: str | None
+    location: str | None
+    category: str | None
+    procurement_type: str | None
+    publication_date: str | None
     tender_end_date: str | None
 
 
@@ -46,5 +64,13 @@ def create_app(tender_lookup: TenderLookup, document_storage: DocumentStorage) -
             TenderSummaryResponse.model_validate(summary)
             for summary in tender_lookup.list_with_dce_archive(limit=limit, offset=offset)
         ]
+
+    @app.get("/tenders/{id}", response_model=TenderDetailResponse)
+    def get_tender(id: int) -> TenderDetailResponse:
+        """Return one tender that has a DCE archive."""
+        detail = tender_lookup.get_with_dce_archive(id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Tender not found")
+        return TenderDetailResponse.model_validate(detail)
 
     return app

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 
 import { listTenders, MAX_LIST_LIMIT, type TenderSummary } from "../api/client";
 
@@ -55,9 +56,19 @@ export function TenderListPage() {
           </thead>
           <tbody>
             {state.tenders.map((tender) => (
-              <tr key={tender.id}>
-                <td>{tender.reference_number}</td>
-                <td title={tender.tender_object ?? undefined}>{shorten(tender.tender_object)}</td>
+              <tr key={tender.id} className="tender-table__row">
+                <td>
+                  {/* Stretched over the whole row, so the row is one link. */}
+                  <Link
+                    to={`/tenders/${tender.id}`}
+                    className="tender-table__link"
+                    // The link covers the row, so it carries the full object's tooltip.
+                    title={tender.tender_object ?? undefined}
+                  >
+                    {tender.reference_number || "View tender"}
+                  </Link>
+                </td>
+                <td>{shorten(tender.tender_object)}</td>
                 <td>{tender.public_buyer}</td>
                 <td className="nowrap">{tender.tender_end_date}</td>
               </tr>

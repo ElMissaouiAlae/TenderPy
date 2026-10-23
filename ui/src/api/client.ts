@@ -14,6 +14,20 @@ export interface TenderSummary {
   tender_end_date: string | null;
 }
 
+export interface TenderDetail {
+  id: number;
+  tender_id: string | null;
+  organization_acronym: string | null;
+  reference_number: string | null;
+  tender_object: string | null;
+  public_buyer: string | null;
+  location: string | null;
+  category: string | null;
+  procurement_type: string | null;
+  publication_date: string | null;
+  tender_end_date: string | null;
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -41,4 +55,10 @@ export function listTenders(
   if (offset !== undefined) params.set("offset", String(offset));
   const query = params.size > 0 ? `?${params}` : "";
   return getJson<TenderSummary[]>(`/tenders${query}`, signal);
+}
+
+// Rejects with an ApiError of status 404 when the tender does not exist or
+// has no DCE archive.
+export function getTender(id: string, signal?: AbortSignal): Promise<TenderDetail> {
+  return getJson<TenderDetail>(`/tenders/${encodeURIComponent(id)}`, signal);
 }
