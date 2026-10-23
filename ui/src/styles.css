@@ -1,13 +1,37 @@
+/* Design tokens, from the dashboard design canvas. Components use these
+   rather than raw values so later pages share one look. */
 :root {
-  --sidebar-width: 200px;
-  --sidebar-collapsed-width: 48px;
-  --border: #d9dce1;
-  --muted: #5f6672;
-  --accent: #1f5fbf;
-  --sidebar-bg: #f4f5f7;
+  --accent: #6a4be0;
+  --accent-hover: #5b3cc4;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --muted: #64748b;
+  --danger: #b42318;
+
+  --radius-card: 18px;
+  --radius-button: 12px;
+  --radius-control: 10px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --sidebar-width: 248px;
+  --sidebar-collapsed-width: 76px;
+  --content-max-width: 1200px;
+  --target-size: 44px;
+
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1d2129;
-  background: #fff;
+  color: var(--text);
+  background: var(--bg);
 }
 
 * {
@@ -16,79 +40,162 @@
 
 body {
   margin: 0;
+  background: var(--bg);
+}
+
+a {
+  color: var(--accent-hover);
 }
 
 .layout {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
   transition: grid-template-columns 0.15s ease;
 }
 
 .layout--collapsed {
-  grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+  grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
 }
 
 .sidebar {
-  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 8px;
   overflow: hidden;
 }
 
-.sidebar__toggle {
-  display: block;
-  margin-left: auto;
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.layout--collapsed .sidebar__header {
+  flex-direction: column;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--space-2);
+}
+
+.layout--collapsed .sidebar__brand {
+  padding: 0;
+}
+
+.sidebar__logo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.sidebar__brand-name {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.layout--collapsed .sidebar__brand-name {
+  display: none;
+}
+
+.sidebar__toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target-size);
+  height: var(--target-size);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  background: #fff;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
-.layout--collapsed .sidebar__toggle {
-  margin: 0 auto;
+.sidebar__toggle:hover {
+  background: var(--surface-muted);
+  color: var(--text);
 }
 
 .sidebar__nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 12px;
+  gap: var(--space-1);
 }
 
 .sidebar__link {
-  display: block;
-  padding: 8px 10px;
-  border-radius: 4px;
-  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-size);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  font-size: 15px;
   text-decoration: none;
   white-space: nowrap;
 }
 
-.layout--collapsed .sidebar__link {
-  text-align: center;
-  padding: 8px 0;
+.sidebar__link svg {
+  flex: none;
 }
 
 .sidebar__link:hover {
-  background: #e7e9ed;
+  background: var(--surface-muted);
+  color: var(--text);
 }
 
 .sidebar__link.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.layout--collapsed .sidebar__link {
+  justify-content: center;
+  padding: 0;
+}
+
+/* Hidden but still the link's accessible name while collapsed. */
+.layout--collapsed .sidebar__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .main {
-  padding: 24px 32px;
   min-width: 0;
+  padding: 28px var(--space-6) 40px;
+}
+
+.main__content {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
 }
 
 .main h1 {
-  margin-top: 0;
-  font-size: 1.5rem;
+  margin: 0 0 var(--space-5);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .message {
@@ -96,7 +203,7 @@ body {
 }
 
 .message--error {
-  color: #b42318;
+  color: var(--danger);
 }
 
 .tender-table {
@@ -120,4 +227,60 @@ body {
 
 .nowrap {
   white-space: nowrap;
+}
+
+/* Phone width: the sidebar becomes a bar above the page and the collapse
+   toggle goes away, since there is no width to give back. */
+@media (max-width: 720px) {
+  .layout,
+  .layout--collapsed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar__header,
+  .layout--collapsed .sidebar__header {
+    flex-direction: row;
+  }
+
+  .sidebar__brand-name,
+  .layout--collapsed .sidebar__brand-name {
+    display: inline;
+  }
+
+  .sidebar__toggle {
+    display: none;
+  }
+
+  .sidebar__nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+
+  .layout--collapsed .sidebar__link {
+    padding: 0 var(--space-3);
+  }
+
+  .layout--collapsed .sidebar__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+  }
+
+  .main {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
 }
