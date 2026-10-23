@@ -15,6 +15,11 @@ function shorten(text: string | null): string {
   return text.length > MAX_OBJECT_LENGTH ? `${text.slice(0, MAX_OBJECT_LENGTH).trimEnd()}…` : text;
 }
 
+// "public buyer · reference number", skipping whichever is missing.
+function buyerAndReference(tender: TenderSummary): string {
+  return [tender.public_buyer, tender.reference_number].filter(Boolean).join(" · ");
+}
+
 export function TenderListPage() {
   const [state, setState] = useState<State>({ kind: "loading" });
 
@@ -33,49 +38,56 @@ export function TenderListPage() {
   }, []);
 
   return (
-    <section>
-      <h1>Tenders</h1>
-      {state.kind === "loading" && <p className="message">Loading tenders…</p>}
-      {state.kind === "error" && (
-        <p className="message message--error">
-          Could not load tenders. Check that the API is running and try again.
-        </p>
-      )}
-      {state.kind === "loaded" && state.tenders.length === 0 && (
-        <p className="message">No tender has a DCE archive yet.</p>
-      )}
-      {state.kind === "loaded" && state.tenders.length > 0 && (
-        <table className="tender-table">
-          <thead>
-            <tr>
-              <th>Reference</th>
-              <th>Object</th>
-              <th>Public buyer</th>
-              <th>End date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.tenders.map((tender) => (
-              <tr key={tender.id} className="tender-table__row">
-                <td>
-                  {/* Stretched over the whole row, so the row is one link. */}
-                  <Link
-                    to={`/tenders/${tender.id}`}
-                    className="tender-table__link"
-                    // The link covers the row, so it carries the full object's tooltip.
-                    title={tender.tender_object ?? undefined}
-                  >
-                    {tender.reference_number || "View tender"}
-                  </Link>
-                </td>
-                <td>{shorten(tender.tender_object)}</td>
-                <td>{tender.public_buyer}</td>
-                <td className="nowrap">{tender.tender_end_date}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+    <section className="page">
+      <header className="page__header">
+        <h1 className="page__title">Tenders</h1>
+        <p className="page__description">Every tender whose DCE archive is available.</p>
+      </header>
+      <div className="card card--table">
+        {state.kind === "loading" && <p className="card__message message">Loading tenders…</p>}
+        {state.kind === "error" && (
+          <p className="card__message message message--error">
+            Could not load tenders. Check that the API is running and try again.
+          </p>
+        )}
+        {state.kind === "loaded" && state.tenders.length === 0 && (
+          <p className="card__message message">No tender has a DCE archive yet.</p>
+        )}
+        {state.kind === "loaded" && state.tenders.length > 0 && (
+          <div className="table-scroll">
+            <table className="tender-table">
+              <thead>
+                <tr>
+                  <th scope="col">Tender</th>
+                  <th scope="col">Deadline</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.tenders.map((tender) => {
+                  const meta = buyerAndReference(tender);
+                  return (
+                    <tr key={tender.id} className="tender-table__row">
+                      <td>
+                        {/* Stretched over the whole row, so the row is one link. */}
+                        <Link
+                          to={`/tenders/${tender.id}`}
+                          className="tender-table__link"
+                          // The link covers the row, so it carries the full object's tooltip.
+                          title={tender.tender_object ?? undefined}
+                        >
+                          {shorten(tender.tender_object) || "Untitled tender"}
+                        </Link>
+                        {meta && <span className="tender-table__meta">{meta}</span>}
+                      </td>
+                      <td className="tender-table__deadline">{tender.tender_end_date}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
