@@ -81,7 +81,7 @@ Restyle the layout shell, the tender list and the tender detail page in the temp
     - The object as the title.
     - A muted line: "public buyer · Ref. reference number · Published publication date".
     - A filled blue "Download DCE archive" button, kept as the plain link to `dceArchiveUrl(id)` it already is.
-    - A white "Key facts" card with muted labels holding tender ID, organization acronym, location and tender end date.
+    - A white "Key facts" card with muted labels holding tender ID, organization acronym, location and tender end date. (Confirmed against `78:351` on 2026-11-21: the template titles its cards from above, as with "My Cards", in Semi Bold 22 px Primary 2. So "Key facts" sits above its card at that size, 18 px at phone width. The filled button follows the "Send" pill: 50 px high, `#1814F3`, white Medium 16 px. Cards have no border, only "Shadow 1", which the tender list's card now shares.)
   - Every field the detail contract returns appears exactly once. A null value shows a muted "—". An empty tag is left out.
   - Loading, not-found and error states are restyled.
 - **Backend**: unchanged. The DCE archive endpoint (`GET /tenders/{id}/dce-archive`), `GET /tenders` with `limit`/`offset`, `GET /tenders/{id}` and the typed client stay exactly as they are.

@@ -9,9 +9,9 @@ type State =
   | { kind: "error" }
   | { kind: "loaded"; tender: TenderDetail };
 
-// Shows a missing field explicitly, so it isn't mistaken for broken layout.
+// A muted dash stands in for a missing value, as in the tender list.
 function Value({ value }: { value: string | null }) {
-  return value ? <>{value}</> : <span className="placeholder">Not recorded</span>;
+  return value ? <>{value}</> : <span className="empty-value">—</span>;
 }
 
 export function TenderDetailPage() {
@@ -44,21 +44,41 @@ export function TenderDetailPage() {
   return (
     <section className="tender-detail">
       <Link to="/tenders" className="back-link">
-        ← Back to tenders
+        <span aria-hidden="true">←</span> Back to tenders
       </Link>
-      {state.kind === "loading" && <p className="message">Loading tender…</p>}
+      {state.kind === "loading" && (
+        <div className="card">
+          <p className="message">Loading tender…</p>
+        </div>
+      )}
       {state.kind === "not-found" && (
-        <p className="message">
-          This tender was not found. It may not exist, or its DCE archive is not available.
-        </p>
+        <div className="card">
+          <p className="message">
+            This tender was not found. It may not exist, or its DCE archive is not available.
+          </p>
+        </div>
       )}
       {state.kind === "error" && (
-        <p className="message message--error">
-          Could not load this tender. Check that the API is running and try again.
-        </p>
+        <div className="card">
+          <p className="message message--error">
+            Could not load this tender. Check that the API is running and try again.
+          </p>
+        </div>
       )}
       {state.kind === "loaded" && <TenderDetailView tender={state.tender} />}
     </section>
+  );
+}
+
+// One entry of the "Key facts" card: a muted label over its value.
+function Fact({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="fact">
+      <dt>{label}</dt>
+      <dd>
+        <Value value={value} />
+      </dd>
+    </div>
   );
 }
 
@@ -67,9 +87,9 @@ function TenderDetailView({ tender }: { tender: TenderDetail }) {
     <>
       <header className="tender-detail__header">
         {(tender.category || tender.procurement_type) && (
-          <div className="pills">
-            {tender.category && <span className="pill pill--accent">{tender.category}</span>}
-            {tender.procurement_type && <span className="pill">{tender.procurement_type}</span>}
+          <div className="tags">
+            {tender.category && <span className="tag tag--accent">{tender.category}</span>}
+            {tender.procurement_type && <span className="tag">{tender.procurement_type}</span>}
           </div>
         )}
         {/* h2: the top bar's "Tenders" is the page's h1. */}
@@ -81,41 +101,25 @@ function TenderDetailView({ tender }: { tender: TenderDetail }) {
           Published <Value value={tender.publication_date} />
         </p>
         <div className="tender-detail__actions">
+          {/* A plain link, so the browser handles the download itself. */}
           <a className="button button--primary" href={dceArchiveUrl(tender.id)}>
             Download DCE archive
           </a>
         </div>
       </header>
-      <section className="card" aria-labelledby="key-facts-title">
-        <h2 id="key-facts-title" className="card__title">
+      {/* The template titles its cards from above, as with "My Cards". */}
+      <section className="section" aria-labelledby="key-facts-title">
+        <h3 id="key-facts-title" className="section__title">
           Key facts
-        </h2>
-        <dl className="facts">
-          <div className="fact">
-            <dt>Tender ID</dt>
-            <dd>
-              <Value value={tender.tender_id} />
-            </dd>
-          </div>
-          <div className="fact">
-            <dt>Organization acronym</dt>
-            <dd>
-              <Value value={tender.organization_acronym} />
-            </dd>
-          </div>
-          <div className="fact">
-            <dt>Location</dt>
-            <dd>
-              <Value value={tender.location} />
-            </dd>
-          </div>
-          <div className="fact">
-            <dt>End date</dt>
-            <dd>
-              <Value value={tender.tender_end_date} />
-            </dd>
-          </div>
-        </dl>
+        </h3>
+        <div className="card">
+          <dl className="facts">
+            <Fact label="Tender ID" value={tender.tender_id} />
+            <Fact label="Organization acronym" value={tender.organization_acronym} />
+            <Fact label="Location" value={tender.location} />
+            <Fact label="Tender end date" value={tender.tender_end_date} />
+          </dl>
+        </div>
       </section>
     </>
   );

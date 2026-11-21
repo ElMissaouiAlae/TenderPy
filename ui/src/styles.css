@@ -79,6 +79,10 @@
   --radius-card-phone: 15px;
   --list-inset-phone: 20px;
   --outline-button-height: 35px;
+  --filled-button-height: 50px;
+  /* Space inside a card, and between a section title and its card. */
+  --card-gap: 18px;
+  --facts-column-min: 200px;
   --target-size: 44px;
 
   font-family: var(--font-sans);
@@ -425,23 +429,19 @@ a {
   cursor: default;
 }
 
-.placeholder {
-  color: var(--muted);
-  font-style: italic;
-  font-weight: 400;
-}
-
 .back-link {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: var(--target-size);
-  color: var(--text-secondary);
-  font-size: 14px;
+  color: var(--muted);
+  font-size: var(--text-body-2);
+  font-weight: 500;
   text-decoration: none;
 }
 
 .back-link:hover {
-  color: var(--text);
+  color: var(--heading);
 }
 
 .tender-detail {
@@ -452,6 +452,8 @@ a {
 
 .tender-detail > .back-link {
   align-self: flex-start;
+  /* Keeps the 44px target without pushing the header down. */
+  margin: calc(var(--space-3) * -1) 0;
 }
 
 .tender-detail__header {
@@ -460,25 +462,27 @@ a {
   gap: var(--space-3);
 }
 
-.main .tender-detail__title {
+.tender-detail__title {
   margin: 0;
-  font-size: 34px;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  color: var(--heading);
+  font-size: var(--text-h1);
+  font-weight: 600;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .tender-detail__meta {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 15px;
+  color: var(--muted);
+  font-size: var(--text-body-2);
+  line-height: 1.5;
 }
 
 .tender-detail__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .button {
@@ -493,9 +497,15 @@ a {
   text-decoration: none;
 }
 
+/* The template's filled pill, as its "Send" button in frame 78:351:
+   50px high, the accent blue, white Medium text. */
 .button--primary {
+  min-height: var(--filled-button-height);
+  padding: 0 var(--space-6);
   background: var(--accent);
   color: var(--surface);
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 
 .button--outline {
@@ -529,67 +539,78 @@ a {
   outline-offset: 2px;
 }
 
-.pills {
+/* Category and procurement type above the title. */
+.tags {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.pill {
-  padding: var(--space-1) 10px;
+.tag {
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  font-size: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
-.pill--accent {
+.tag--accent {
   background: var(--accent-soft);
-  color: var(--accent-strong);
+  color: var(--accent);
 }
 
+/* The template's white card: no border, 25px corners, "Shadow 1". */
 .card {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--card-gap);
   padding: var(--space-5);
-  border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
-.card__title {
+.card .message {
   margin: 0;
-  font-size: 18px;
+}
+
+/* A titled block, with the title above its card as in "My Cards". */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+}
+
+.section__title {
+  margin: 0;
+  color: var(--heading);
+  font-size: var(--text-h2);
   font-weight: 600;
 }
 
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(var(--facts-column-min), 1fr));
+  gap: var(--space-5);
   margin: 0;
 }
 
 .fact {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: 14px;
-  border-radius: var(--radius-button);
-  background: var(--bg);
+  gap: var(--space-2);
 }
 
 .fact dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-body-2);
 }
 
 .fact dd {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  color: var(--text);
+  font-size: var(--text-body);
   overflow-wrap: anywhere;
 }
 
@@ -647,17 +668,25 @@ a {
     padding: var(--space-5) var(--space-4) var(--space-6);
   }
 
-  .main .tender-detail__title {
-    font-size: 26px;
+  .tender-detail__title {
+    font-size: var(--text-h2);
+  }
+
+  .section__title {
+    font-size: var(--text-h3);
+  }
+
+  .card {
+    border-radius: var(--radius-card-phone);
+  }
+
+  .tender-detail__actions .button {
+    flex: 1;
   }
 
   /* Frame 181:279: the table becomes a list. Each row shows the object
      with its other fields as muted lines beneath, and Download on the
      right. The labels stand in for the hidden column headers. */
-  .card.card--table {
-    border-radius: var(--radius-card-phone);
-  }
-
   .tender-table,
   .tender-table tbody {
     display: block;
