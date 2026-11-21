@@ -3,7 +3,7 @@
 import pytest
 
 from core.exceptions import PaginationError
-from discovery.paginator import Paginator, PageParams
+from discovery.paginator import PageParams, Paginator
 from discovery.parser import SearchResultPage
 
 

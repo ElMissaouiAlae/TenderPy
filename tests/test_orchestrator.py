@@ -2,8 +2,6 @@
 
 from unittest.mock import Mock
 
-import pytest
-
 from core.models import Tender
 from discovery.orchestrator import DiscoveryOrchestrator
 from discovery.parser import SearchCriteria, SearchResultPage

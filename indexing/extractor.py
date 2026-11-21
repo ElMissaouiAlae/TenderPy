@@ -74,7 +74,7 @@ class _Extraction:
             archive_path = prefix + member.filename
             try:
                 content = zip_file.read(member)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - zipfile has no common error type
                 # zipfile raises several types (BadZipFile, RuntimeError,
                 # NotImplementedError, zlib.error...) for one unreadable member.
                 yield _unreadable(archive_path, exc)

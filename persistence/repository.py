@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List
-
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
@@ -69,12 +67,12 @@ class TenderRepository:
                     )
                     .on_conflict_do_update(
                         index_elements=["tender_id", "organization_acronym"],
-                        set_=dict(
-                            tender_object=record.tender_object,
-                            public_buyer=record.public_buyer,
-                            publication_date=record.publication_date,
-                            updated_at=func.now(),
-                        ),
+                        set_={
+                            "tender_object": record.tender_object,
+                            "public_buyer": record.public_buyer,
+                            "publication_date": record.publication_date,
+                            "updated_at": func.now(),
+                        },
                     )
                 )
 
@@ -82,7 +80,7 @@ class TenderRepository:
         except Exception as exc:
             raise RepositoryError(f"Failed to save tender: {exc}") from exc
 
-    def save_many(self, tenders: List[Tender]) -> None:
+    def save_many(self, tenders: list[Tender]) -> None:
         """Save multiple tenders to the database in a single transaction.
 
         Uses PostgreSQL INSERT ... ON CONFLICT for efficient bulk upserts.
@@ -113,31 +111,31 @@ class TenderRepository:
 
                 insert_stmt = insert(TenderRecord).values(
                     [
-                        dict(
-                            tender_id=record.tender_id,
-                            organization_acronym=record.organization_acronym,
-                            procurement_type=record.procurement_type,
-                            category=record.category,
-                            publication_date=record.publication_date,
-                            reference_number=record.reference_number,
-                            tender_object=record.tender_object,
-                            public_buyer=record.public_buyer,
-                            location=record.location,
-                            tender_end_date=record.tender_end_date,
-                            status=record.status,
-                        )
+                        {
+                            "tender_id": record.tender_id,
+                            "organization_acronym": record.organization_acronym,
+                            "procurement_type": record.procurement_type,
+                            "category": record.category,
+                            "publication_date": record.publication_date,
+                            "reference_number": record.reference_number,
+                            "tender_object": record.tender_object,
+                            "public_buyer": record.public_buyer,
+                            "location": record.location,
+                            "tender_end_date": record.tender_end_date,
+                            "status": record.status,
+                        }
                         for record in records
                     ]
                 )
 
                 stmt = insert_stmt.on_conflict_do_update(
                     index_elements=["tender_id", "organization_acronym"],
-                    set_=dict(
-                        tender_object=insert_stmt.excluded.tender_object,
-                        public_buyer=insert_stmt.excluded.public_buyer,
-                        publication_date=insert_stmt.excluded.publication_date,
-                        updated_at=func.now(),
-                    ),
+                    set_={
+                        "tender_object": insert_stmt.excluded.tender_object,
+                        "public_buyer": insert_stmt.excluded.public_buyer,
+                        "publication_date": insert_stmt.excluded.publication_date,
+                        "updated_at": func.now(),
+                    },
                 )
 
                 session.execute(stmt)
@@ -203,7 +201,7 @@ class TenderRepository:
         except Exception as exc:
             raise RepositoryError(f"Failed to update tender status: {exc}") from exc
 
-    def find_for_indexing(self, limit: int) -> List[Tender]:
+    def find_for_indexing(self, limit: int) -> list[Tender]:
         """Return up to `limit` tenders ready to index, oldest record first.
 
         A tender is ready when it is UPLOADED, or FAILED with a last_status

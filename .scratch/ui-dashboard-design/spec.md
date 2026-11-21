@@ -1,6 +1,8 @@
 # Spec: Dashboard design applied to the tender list and tender detail
 
-Status: ready-for-agent
+Status: wontfix
+
+Replaced by `.scratch/ui-dashboard-figma/spec.md` (2026-11-21): the dashboard now follows the BankDash Figma template instead of the design canvas below.
 
 ## Problem Statement
 
@@ -53,6 +55,7 @@ Restyle the dashboard's layout shell and tender list, and build the tender detai
 ## Implementation Decisions
 
 - **Visual reference**: the design canvas at https://claude.ai/artifact/1WrXRR8ZyfXNqpw4rD6PMj. It is a future vision, not a specification: only its visual language and the layout of the parts that map onto today's tender record are adopted. Where the canvas and the tender record disagree, the tender record wins.
+- **Design source**: Figma file `uiafXy2Gqbsu1uK6Vxj9QV` ("BankDash" template). Node `105:0` "Transaction" is the source for the tender list; node `78:351` "Main Dashboard" is the source for the layout shell (sidebar and main area). Read these frames with `get_screenshot` or `get_design_context` on those node ids, rather than `get_metadata` on the whole page (which returns over 500K characters).
 - **No backend change**: the database, the "has a DCE archive" rule, the API contract (`GET /tenders`, `GET /tenders/{id}`, `GET /tenders/{id}/dce-archive`) and the typed API client's response types stay exactly as the tracer-bullet spec defines them. This spec only changes UI components, pages and styles.
 - **Styling**: plain CSS as before, no component or styling library. The design's look becomes a small set of CSS custom properties defined once on the root: the accent `#6A4BE0` with its darker hover shade, the slate page background (`#F8FAFC`), white card surfaces, border and muted-text greys, text colour, and the corner radii used for cards, buttons and pills. Components use the properties, not raw values. No dark mode.
 - **Fonts**: the design's system sans stack. No web font is added.

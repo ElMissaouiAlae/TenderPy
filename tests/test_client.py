@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from core.exceptions import PaginationError, SearchExecutionError
 from core.models import Tender
 from discovery.client import DiscoveryClient
 from discovery.parser import SearchCriteria, SearchResultPage
-from core.exceptions import PaginationError, SearchExecutionError
 
 
 def test_discovery_client_initialization():

@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { Layout } from "./components/Layout";
 import { TenderDetailPage } from "./pages/TenderDetailPage";
 import { TenderListPage } from "./pages/TenderListPage";
+import "@fontsource-variable/inter";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(

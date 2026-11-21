@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from core.exceptions import HttpRequestError, PaginationError, SearchExecutionError
 from core.session import SearchSession
 
-from .parser import SearchCriteria, SearchResultPage, SearchResultParser
 from .paginator import Paginator
+from .parser import SearchCriteria, SearchResultPage, SearchResultParser
 
 
 class DiscoveryClient:
@@ -33,7 +35,7 @@ class DiscoveryClient:
 
     # --- static baseline: fields PRADO expects on every postback, ---
     # --- regardless of what the user searched for ---
-    _DEFAULT_PAYLOAD: dict[str, str] = {
+    _DEFAULT_PAYLOAD: ClassVar[dict[str, str]] = {
         "PRADO_POSTBACK_TARGET": "ctl0$CONTENU_PAGE$AdvancedSearch$lancerRecherche",
         "ctl0$menuGaucheEntreprise$quickSearch": "Recherche rapide",
         "ctl0$CONTENU_PAGE$AdvancedSearch$type_rechercheEntite": "floue",

@@ -32,7 +32,8 @@ def log_tenders(tenders, test_name):
     output_dir.mkdir(exist_ok=True)
 
     # Save to JSON file
-    output_file = output_dir / f'{test_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # noqa: DTZ005 - local time for filenames
+    output_file = output_dir / f'{test_name}_{timestamp}.json'
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump([tender_to_dict(t) for t in tenders], f, indent=2, ensure_ascii=False)
 
@@ -55,7 +56,7 @@ def log_http_error(error, context=""):
     """Log detailed HTTP error information including response details."""
     logger.error(f"HTTP Error in {context}")
     logger.error(f"Error type: {type(error).__name__}")
-    logger.error(f"Error message: {str(error)}")
+    logger.error(f"Error message: {error!s}")
 
     # Try to extract response details if available
     if hasattr(error, 'args') and error.args:
@@ -66,20 +67,20 @@ def log_http_error(error, context=""):
     # Try to access response object if it's a requests-related error
     if hasattr(error, '__cause__') and error.__cause__:
         cause = error.__cause__
-        logger.error(f"Cause: {type(cause).__name__} - {str(cause)}")
+        logger.error(f"Cause: {type(cause).__name__} - {cause!s}")
 
         # If it's a requests.Response, log headers and body
         if hasattr(cause, 'response') and cause.response is not None:
             response = cause.response
             logger.error(f"HTTP Status Code: {response.status_code}")
-            logger.error(f"Response Headers:")
+            logger.error("Response Headers:")
             for key, value in response.headers.items():
                 logger.error(f"  {key}: {value}")
 
             # Log response body (truncated if too long)
             body = response.text
             if body:
-                logger.error(f"Response Body (first 1000 chars):")
+                logger.error("Response Body (first 1000 chars):")
                 logger.error(body[:1000])
                 if len(body) > 1000:
                     logger.error(f"... (body truncated, total length: {len(body)} chars)")

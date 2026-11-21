@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -51,6 +51,7 @@ class Database:
                 max_overflow=self._settings.max_overflow,
                 pool_timeout=self._settings.pool_timeout,
                 pool_recycle=self._settings.pool_recycle,
+                connect_args={"connect_timeout": self._settings.connect_timeout},
                 echo=False,
             )
             self._session_factory = sessionmaker(bind=self.engine)

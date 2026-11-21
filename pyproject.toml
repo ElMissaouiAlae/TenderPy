@@ -33,5 +33,11 @@ dev = [
 pythonpath = ["."]
 
 [tool.setuptools.packages.find]
-include = ["core*", "discovery*", "persistence*", "indexing*", "api*"]
-include = ["core*", "discovery*", "persistence*", "indexing*", "retrieval*"]
+include = ["core*", "discovery*", "persistence*", "indexing*", "api*", "retrieval*"]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [".venv", "node_modules", ".scratch", ".vector_db"]
+
+[tool.ruff.lint]
+extend-select = ["I"]

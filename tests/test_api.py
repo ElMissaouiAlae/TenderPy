@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, create_app
+from persistence.database_probe import DatabaseHealth
 from persistence.file_storage import LocalDocumentStorage
 from persistence.tender_lookup import TenderDetail, TenderSummary
 
@@ -28,6 +29,19 @@ class InMemoryTenderLookup:
 
     def get_with_dce_archive(self, id: int) -> TenderDetail | None:
         return self._details.get(id)
+
+
+class FakeDatabaseProbe:
+    """Reports a fixed database health."""
+
+    def __init__(self, health: DatabaseHealth) -> None:
+        self._health = health
+
+    def check(self) -> DatabaseHealth:
+        return self._health
+
+
+REACHABLE = DatabaseHealth(reachable=True)
 
 
 def summary(id: int) -> TenderSummary:
@@ -59,11 +73,14 @@ def detail(id: int) -> TenderDetail:
 @pytest.fixture
 def make_client(tmp_path):
     def make(
-        tenders: Sequence[TenderSummary] = (), details: Sequence[TenderDetail] = ()
+        tenders: Sequence[TenderSummary] = (),
+        details: Sequence[TenderDetail] = (),
+        database_health: DatabaseHealth = REACHABLE,
     ) -> TestClient:
         app = create_app(
             tender_lookup=InMemoryTenderLookup(tenders, details),
             document_storage=LocalDocumentStorage(tmp_path),
+            database_probe=FakeDatabaseProbe(database_health),
         )
         return TestClient(app)
 
@@ -193,3 +210,37 @@ def test_archive_download_is_not_found_when_the_archive_is_missing_from_storage(
     response = client.get("/tenders/3/dce-archive")
 
     assert response.status_code == 404
+
+
+def test_health_is_ok_when_the_database_is_reachable(make_client):
+    client = make_client()
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"database": "ok"}
+
+
+def test_health_is_unavailable_with_the_reason_when_the_database_is_unreachable(make_client):
+    client = make_client(
+        database_health=DatabaseHealth(reachable=False, reason="host does not resolve")
+    )
+
+    response = client.get("/health")
+
+    assert response.status_code == 503
+    assert response.json() == {"database": "unreachable", "reason": "host does not resolve"}
+
+
+def test_health_never_carries_the_database_url_or_credentials(make_client):
+    # The Postgres probe keeps the URL out of its reason (checked in
+    # integration_tests/database_probe.py); /health must not add it back.
+    database_url = "postgresql://avnadmin:s3cret@pg-tenderpy.aivencloud.com:12345/defaultdb"
+    for database_health in (REACHABLE, DatabaseHealth(reachable=False, reason="timed out")):
+        client = make_client(database_health=database_health)
+
+        response = client.get("/health")
+
+        assert set(response.json()) <= {"database", "reason"}
+        for secret in (database_url, "avnadmin", "s3cret", "aivencloud"):
+            assert secret not in response.text

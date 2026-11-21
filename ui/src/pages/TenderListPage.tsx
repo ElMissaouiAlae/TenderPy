@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, useSearchParams } from "react-router";
 
-import { listTenders, MAX_LIST_LIMIT, type TenderSummary } from "../api/client";
+import { dceArchiveUrl, listTenders, type TenderSummary } from "../api/client";
 
+const PAGE_SIZE = 20;
 const MAX_OBJECT_LENGTH = 120;
 
 type State =
@@ -10,23 +11,33 @@ type State =
   | { kind: "error" }
   | { kind: "loaded"; tenders: TenderSummary[] };
 
-function shorten(text: string | null): string {
-  if (!text) return "";
+// `?page=N` is 1-based. Anything missing, non-numeric or below 1 is page 1.
+function parsePage(raw: string | null): number {
+  const page = Number(raw);
+  return Number.isSafeInteger(page) && page >= 1 ? page : 1;
+}
+
+// The object, shortened when long, as the row's visible name.
+function tenderTitle(tender: TenderSummary): string {
+  const text = tender.tender_object;
+  if (!text) return "Untitled tender";
   return text.length > MAX_OBJECT_LENGTH ? `${text.slice(0, MAX_OBJECT_LENGTH).trimEnd()}…` : text;
 }
 
-// "public buyer · reference number", skipping whichever is missing.
-function buyerAndReference(tender: TenderSummary): string {
-  return [tender.public_buyer, tender.reference_number].filter(Boolean).join(" · ");
+// A muted dash stands in for a missing value.
+function orDash(value: string | null): ReactNode {
+  return value || <span className="empty-value">—</span>;
 }
 
 export function TenderListPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parsePage(searchParams.get("page"));
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();
-    // No pagination controls yet, so ask for as many as the API allows.
-    listTenders({ limit: MAX_LIST_LIMIT }, controller.signal)
+    setState({ kind: "loading" });
+    listTenders({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, controller.signal)
       .then((tenders) => setState({ kind: "loaded", tenders }))
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
@@ -35,14 +46,21 @@ export function TenderListPage() {
         }
       });
     return () => controller.abort();
-  }, []);
+  }, [page]);
+
+  function goToPage(target: number) {
+    setSearchParams(target === 1 ? {} : { page: String(target) });
+    // The pager sits below the table, so start the new page from its top.
+    window.scrollTo(0, 0);
+  }
+
+  // The API returns no total, so a short page is the only sign of the last one.
+  const hasNext = state.kind === "loaded" && state.tenders.length === PAGE_SIZE;
 
   return (
     <section className="page">
-      <header className="page__header">
-        <h1 className="page__title">Tenders</h1>
-        <p className="page__description">Every tender whose DCE archive is available.</p>
-      </header>
+      {/* The page title is the top bar's heading. */}
+      <p className="page__description">Every tender whose DCE archive is available.</p>
       <div className="card card--table">
         {state.kind === "loading" && <p className="card__message message">Loading tenders…</p>}
         {state.kind === "error" && (
@@ -51,35 +69,54 @@ export function TenderListPage() {
           </p>
         )}
         {state.kind === "loaded" && state.tenders.length === 0 && (
-          <p className="card__message message">No tender has a DCE archive yet.</p>
+          <p className="card__message message">
+            {page === 1 ? "No tender has a DCE archive yet." : "No more tenders."}
+          </p>
         )}
         {state.kind === "loaded" && state.tenders.length > 0 && (
           <div className="table-scroll">
             <table className="tender-table">
               <thead>
                 <tr>
-                  <th scope="col">Tender</th>
+                  <th scope="col">Object</th>
+                  <th scope="col">Reference</th>
+                  <th scope="col">Public buyer</th>
                   <th scope="col">Deadline</th>
+                  <th scope="col">
+                    <span className="visually-hidden">DCE archive</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {state.tenders.map((tender) => {
-                  const meta = buyerAndReference(tender);
+                  const title = tenderTitle(tender);
                   return (
                     <tr key={tender.id} className="tender-table__row">
-                      <td>
+                      <td className="tender-table__object">
                         {/* Stretched over the whole row, so the row is one link. */}
                         <Link
                           to={`/tenders/${tender.id}`}
                           className="tender-table__link"
-                          // The link covers the row, so it carries the full object's tooltip.
                           title={tender.tender_object ?? undefined}
                         >
-                          {shorten(tender.tender_object) || "Untitled tender"}
+                          {title}
                         </Link>
-                        {meta && <span className="tender-table__meta">{meta}</span>}
                       </td>
-                      <td className="tender-table__deadline">{tender.tender_end_date}</td>
+                      <td className="tender-table__reference">{orDash(tender.reference_number)}</td>
+                      <td className="tender-table__buyer">{orDash(tender.public_buyer)}</td>
+                      <td className="tender-table__deadline">{orDash(tender.tender_end_date)}</td>
+                      <td className="tender-table__download">
+                        {/* Sits above the row link, so it downloads without opening the tender. */}
+                        <a
+                          href={dceArchiveUrl(tender.id)}
+                          className="button button--outline"
+                          // Every row's button reads "Download", so name the tender too.
+                          aria-label={`Download DCE archive: ${title}`}
+                          download
+                        >
+                          Download
+                        </a>
+                      </td>
                     </tr>
                   );
                 })}
@@ -88,6 +125,34 @@ export function TenderListPage() {
           </div>
         )}
       </div>
+      <nav className="pager" aria-label="Pagination">
+        <button
+          type="button"
+          className="pager__button"
+          disabled={page === 1}
+          onClick={() => goToPage(page - 1)}
+        >
+          <ChevronIcon direction="left" />
+          Previous
+        </button>
+        <button
+          type="button"
+          className="pager__button"
+          disabled={!hasNext}
+          onClick={() => goToPage(page + 1)}
+        >
+          Next
+          <ChevronIcon direction="right" />
+        </button>
+      </nav>
     </section>
+  );
+}
+
+function ChevronIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={direction === "left" ? "M6 1 1 6l5 5" : "m1 1 5 5-5 5"} />
+    </svg>
   );
 }
