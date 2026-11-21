@@ -34,3 +34,4 @@ pythonpath = ["."]
 
 [tool.setuptools.packages.find]
 include = ["core*", "discovery*", "persistence*", "indexing*", "api*"]
+include = ["core*", "discovery*", "persistence*", "indexing*", "retrieval*"]
