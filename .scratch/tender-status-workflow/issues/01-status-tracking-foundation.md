@@ -14,9 +14,9 @@ existing natural key, `(tender_id, organization_acronym)`.
 
 **Status:** done
 
-- [ ] `TenderStatus` enum contains exactly `DISCOVERED, DOWNLOADING, DOWNLOADED, UPLOADING, UPLOADED, INDEXED, FAILED` — `PROCESSING` is removed
-- [ ] `TenderRecord` has a new nullable `last_status` column (same style as `status`), added via a new Alembic migration chained after the existing `001` revision
-- [ ] `TenderRepository` exposes a method to update a tender's `status` (and optionally `last_status`), looked up by `(tender_id, organization_acronym)`
-- [ ] Calling it with a new status and no `last_status` clears `last_status` back to null
-- [ ] Calling it with `status=FAILED` and an explicit `last_status` sets both columns accordingly
-- [ ] Integration test (against a real database, following the existing pattern used for `save`/`save_many`/`exists`) covers: a normal forward transition, a failure transition setting `FAILED` + a non-null `last_status`, and a subsequent successful transition clearing `last_status` back to null
+- [x] `TenderStatus` enum contains exactly `DISCOVERED, DOWNLOADING, DOWNLOADED, UPLOADING, UPLOADED, INDEXED, FAILED` — `PROCESSING` is removed
+- [x] `TenderRecord` has a new nullable `last_status` column (same style as `status`), added via a new Alembic migration chained after the existing `001` revision
+- [x] `TenderRepository` exposes a method to update a tender's `status` (and optionally `last_status`), looked up by `(tender_id, organization_acronym)`
+- [x] Calling it with a new status and no `last_status` clears `last_status` back to null
+- [x] Calling it with `status=FAILED` and an explicit `last_status` sets both columns accordingly
+- [x] Integration test (against a real database, following the existing pattern used for `save`/`save_many`/`exists`) covers: a normal forward transition, a failure transition setting `FAILED` + a non-null `last_status`, and a subsequent successful transition clearing `last_status` back to null

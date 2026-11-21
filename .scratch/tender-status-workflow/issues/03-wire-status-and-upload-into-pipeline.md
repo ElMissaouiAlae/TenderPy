@@ -12,10 +12,10 @@ tenders rather than aborting the whole batch.
 
 **Blocked by:** 01 (status tracking foundation), 02 (S3 upload capability)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Each tender's status moves through `DOWNLOADING → DOWNLOADED → UPLOADING → UPLOADED → INDEXED` as the corresponding step actually happens, via the status-update method from ticket 01
-- [ ] A failure downloading or uploading a tender's archive sets that tender's `status` to `FAILED` with `last_status` set to its last successfully completed step
-- [ ] A failure on one tender does not stop the rest of the batch from being processed (matching the existing per-tender `try/except HttpRequestError` shape already used around download)
-- [ ] After a successful download, the archive is uploaded to S3 via the `TenderUploader` from ticket 02
-- [ ] Running the existing date-range-search integration test end to end shows tenders reaching `INDEXED` in the database (or `FAILED` with a `last_status` for any that errored)
+- [x] Each tender's status moves through `DOWNLOADING → DOWNLOADED → UPLOADING → UPLOADED → INDEXED` as the corresponding step actually happens, via the status-update method from ticket 01
+- [x] A failure downloading or uploading a tender's archive sets that tender's `status` to `FAILED` with `last_status` set to its last successfully completed step
+- [x] A failure on one tender does not stop the rest of the batch from being processed (matching the existing per-tender `try/except HttpRequestError` shape already used around download)
+- [x] After a successful download, the archive is uploaded to S3 via the `TenderUploader` from ticket 02
+- [x] Running the existing date-range-search integration test end to end shows tenders reaching `INDEXED` in the database (or `FAILED` with a `last_status` for any that errored)
