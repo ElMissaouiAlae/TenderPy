@@ -42,7 +42,7 @@ Restyle the layout shell, the tender list and the tender detail page in the temp
     - "Primary 3" `#2D60FF`.
     - Card shadow "Shadow 1": `#E7E4E8CC`, offset 4/4, blur 18, spread −2.
   - Read off the frames (confirm with `get_design_context` when implementing):
-    - Bright blue accent `#1814F3` for the pager, the outlined buttons and the filled buttons. (Confirmed against `78:351` on 2026-11-21: the active nav bar and active nav text are "Primary 3" `#2D60FF`, not `#1814F3`.)
+    - Bright blue accent `#1814F3` for the pager, the outlined buttons and the filled buttons. (Confirmed against `78:351` on 2026-11-21: the active nav bar and active nav text are "Primary 3" `#2D60FF`, not `#1814F3`.) (Confirmed against `105:0` on 2026-11-21: the outlined Download buttons are navy `#123288` at rest; one row shows `#1814F3`, used as their hover colour.)
     - Body text `#232323`.
     - Page background `#F5F7FA`, white cards, light borders `#E6EFF5`.
   - The template's muted grey-blue `#718EBF` is darkened to about `#5B6F96` so muted text reaches 4.5:1 contrast on white. Inactive nav text (`#B1B1B1` in the template, 2.1:1) uses the same `#5B6F96`. Error text keeps `#B42318`, since the template's reds fail 4.5:1 as text. Every other value matches the template.

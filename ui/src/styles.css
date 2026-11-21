@@ -11,6 +11,9 @@
   --bg: #f5f7fa;
   --surface: #ffffff;
   --border: #e6eff5;
+  --divider: #f2f4f7; /* between table rows */
+  /* Outlined buttons, per frame 105:0: navy at rest, the accent on hover. */
+  --button-outline: #123288;
   --text: #232323;
   /* The template's #718ebf (and #b1b1b1 for inactive nav) are darkened so
      muted text reaches 4.5:1 on white. */
@@ -43,6 +46,7 @@
   --text-body: 16px;
   --text-body-2: 15px;
   --text-small: 13px;
+  --text-caption: 12px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -65,6 +69,16 @@
   --topbar-height: 100px;
   --topbar-height-phone: 70px;
   --content-max-width: 1200px;
+  /* Table geometry from frame 105:0: 30px side inset, 66px rows. */
+  --table-inset: 30px;
+  --table-header-top: 22px;
+  --table-row-height: 66px;
+  --table-min-width: 760px;
+  --table-object-min-width: 240px;
+  /* Phone list geometry from frame 181:279. */
+  --radius-card-phone: 15px;
+  --list-inset-phone: 20px;
+  --outline-button-height: 35px;
   --target-size: 44px;
 
   font-family: var(--font-sans);
@@ -272,27 +286,45 @@ a {
   overflow-x: auto;
 }
 
+/* The template's "Recent Transactions" table (frame 105:0): muted
+   headers over a blue-grey rule, 66px rows split by a fainter rule. */
 .tender-table {
   width: 100%;
-  min-width: 520px;
+  min-width: var(--table-min-width);
   border-collapse: collapse;
 }
 
 .tender-table th,
 .tender-table td {
+  padding: var(--space-4) var(--space-3);
   text-align: left;
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.tender-table th:first-child,
+.tender-table td:first-child {
+  padding-left: var(--table-inset);
+}
+
+.tender-table th:last-child,
+.tender-table td:last-child {
+  padding-right: var(--table-inset);
 }
 
 .tender-table th {
-  padding-top: var(--space-3);
+  padding-top: var(--table-header-top);
   padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tender-table td {
+  height: var(--table-row-height);
+  border-bottom: 1px solid var(--divider);
+  font-size: var(--text-body);
 }
 
 .tender-table tbody tr:last-child td {
@@ -308,15 +340,13 @@ a {
 }
 
 .tender-table__link {
-  display: block;
   color: var(--text);
-  font-size: 15px;
-  font-weight: 500;
   line-height: 1.35;
   text-decoration: none;
 }
 
-/* Stretches the link over its row, so the whole row is the click target. */
+/* Stretches the link over its row, so the whole row is the click target.
+   The Download button sits above it. */
 .tender-table__link::after {
   content: "";
   position: absolute;
@@ -332,17 +362,67 @@ a {
   outline-offset: -2px;
 }
 
-.tender-table__meta {
-  display: block;
-  margin-top: var(--space-1);
-  color: var(--muted);
-  font-size: 13px;
+.tender-table__object {
+  min-width: var(--table-object-min-width);
 }
 
+.tender-table__reference,
 .tender-table__deadline {
-  width: 1%;
-  font-size: 14px;
   white-space: nowrap;
+}
+
+.tender-table__download {
+  width: 1%;
+}
+
+.tender-table__download .button {
+  z-index: 1;
+}
+
+.empty-value {
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Previous/Next under the table, as in frame 105:0 without the page
+   numbers (the API returns no total). */
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-5);
+}
+
+.pager__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-size);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-body-2);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pager__button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.pager__button:disabled {
+  color: var(--muted);
+  cursor: default;
 }
 
 .placeholder {
@@ -416,6 +496,28 @@ a {
 .button--primary {
   background: var(--accent);
   color: var(--surface);
+}
+
+.button--outline {
+  position: relative;
+  min-height: var(--outline-button-height);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--button-outline);
+  color: var(--button-outline);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Keeps a 44px touch target around the 35px pill. */
+.button--outline::before {
+  content: "";
+  position: absolute;
+  inset: calc((var(--outline-button-height) - var(--target-size)) / 2) 0;
+}
+
+.button--outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .button--primary:hover {
@@ -547,6 +649,80 @@ a {
 
   .main .tender-detail__title {
     font-size: 26px;
+  }
+
+  /* Frame 181:279: the table becomes a list. Each row shows the object
+     with its other fields as muted lines beneath, and Download on the
+     right. The labels stand in for the hidden column headers. */
+  .card.card--table {
+    border-radius: var(--radius-card-phone);
+  }
+
+  .tender-table,
+  .tender-table tbody {
+    display: block;
+    min-width: 0;
+  }
+
+  .tender-table thead {
+    display: none;
+  }
+
+  .tender-table__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--space-3);
+    padding: var(--space-3) var(--list-inset-phone);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tender-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .tender-table .tender-table__row td {
+    grid-column: 1;
+    height: auto;
+    padding: 0;
+    border: 0;
+    color: var(--muted);
+    font-size: var(--text-caption);
+    white-space: normal;
+  }
+
+  .tender-table .tender-table__row .tender-table__object {
+    min-width: 0;
+    margin-bottom: var(--space-1);
+    color: var(--text);
+    font-size: var(--text-small);
+    font-weight: 500;
+  }
+
+  .tender-table__reference::before {
+    content: "Ref. ";
+  }
+
+  .tender-table__buyer::before {
+    content: "Buyer ";
+  }
+
+  .tender-table__deadline::before {
+    content: "Deadline ";
+  }
+
+  .tender-table .tender-table__row .tender-table__download {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: center;
+    width: auto;
+  }
+
+  .tender-table__download .button {
+    font-size: var(--text-small);
+  }
+
+  .pager__button {
+    font-size: var(--text-caption);
   }
 }
 
