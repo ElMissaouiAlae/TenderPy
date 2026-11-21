@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
 from downloader import dce_archive_name
+from persistence.database_probe import DatabaseProbe
 from persistence.exceptions import DocumentNotFoundError
 from persistence.file_storage import DocumentStorage
 from persistence.tender_lookup import TenderDetail, TenderLookup
@@ -44,12 +46,17 @@ class TenderDetailResponse(BaseModel):
     tender_end_date: str | None
 
 
-def create_app(tender_lookup: TenderLookup, document_storage: DocumentStorage) -> FastAPI:
+def create_app(
+    tender_lookup: TenderLookup,
+    document_storage: DocumentStorage,
+    database_probe: DatabaseProbe,
+) -> FastAPI:
     """Build the API from its collaborators.
 
     Args:
         tender_lookup: Read-only access to tenders that have a DCE archive.
         document_storage: Storage the tenders' DCE archives are loaded from.
+        database_probe: Reports whether the database answers, for /health.
 
     Returns:
         The FastAPI application.
@@ -62,6 +69,17 @@ def create_app(tender_lookup: TenderLookup, document_storage: DocumentStorage) -
         if detail is None:
             raise HTTPException(status_code=404, detail="Tender not found")
         return detail
+
+    @app.get("/health")
+    def health() -> JSONResponse:
+        """Report whether the database answers: 200 if it does, 503 if not."""
+        database_health = database_probe.check()
+        if database_health.reachable:
+            return JSONResponse({"database": "ok"})
+        return JSONResponse(
+            {"database": "unreachable", "reason": database_health.reason},
+            status_code=503,
+        )
 
     @app.get("/tenders", response_model=list[TenderSummaryResponse])
     def list_tenders(

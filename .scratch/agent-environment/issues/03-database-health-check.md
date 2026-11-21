@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `create_app` accepts a database probe alongside the tender lookup and the document storage
-- [ ] API test: with a reachable fake probe, `GET /health` returns 200 `{"database": "ok"}`
-- [ ] API test: with an unreachable fake probe, `GET /health` returns 503 with `database: unreachable` and the reason
-- [ ] API test: the health response never contains the database URL or credentials
-- [ ] The Postgres probe reports unreachable, with a reason, on DNS failure, connection refused and timeout, and returns within a few seconds
-- [ ] An integration check runs the Postgres probe against the live database, alongside the existing tender-lookup integration check
-- [ ] `python -m api` logs one warning line at startup when the database is unreachable, and still serves `/docs` and `/health`
+- [x] `create_app` accepts a database probe alongside the tender lookup and the document storage
+- [x] API test: with a reachable fake probe, `GET /health` returns 200 `{"database": "ok"}`
+- [x] API test: with an unreachable fake probe, `GET /health` returns 503 with `database: unreachable` and the reason
+- [x] API test: the health response never contains the database URL or credentials
+- [x] The Postgres probe reports unreachable, with a reason, on DNS failure, connection refused and timeout, and returns within a few seconds
+- [x] An integration check runs the Postgres probe against the live database, alongside the existing tender-lookup integration check
+- [x] `python -m api` logs one warning line at startup when the database is unreachable, and still serves `/docs` and `/health`

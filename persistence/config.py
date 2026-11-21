@@ -27,6 +27,7 @@ class Settings:
         max_overflow: Maximum overflow connections beyond pool_size
         pool_timeout: Timeout in seconds for getting a connection from pool
         pool_recycle: Recycle connections after this many seconds
+        connect_timeout: Seconds to wait for a new connection before giving up
     """
 
     database_url: str
@@ -38,6 +39,7 @@ class Settings:
     max_overflow: int = 10
     pool_timeout: int = 30
     pool_recycle: int = 3600
+    connect_timeout: int = 5
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -74,6 +76,7 @@ class Settings:
             max_overflow=int(os.getenv("DB_MAX_OVERFLOW", str(cls.max_overflow))),
             pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", str(cls.pool_timeout))),
             pool_recycle=int(os.getenv("DB_POOL_RECYCLE", str(cls.pool_recycle))),
+            connect_timeout=int(os.getenv("DB_CONNECT_TIMEOUT", str(cls.connect_timeout))),
         )
 
     def require_s3(self) -> tuple[str, str]:
