@@ -1,26 +1,48 @@
-/* Design tokens, from the dashboard design canvas. Components use these
-   rather than raw values so later pages share one look. */
+/* Design tokens, from the BankDash Figma template (file
+   uiafXy2Gqbsu1uK6Vxj9QV, frame 78:351). Components use these rather than
+   raw values so later pages share one look. */
 :root {
-  --accent: #6a4be0;
-  --accent-hover: #5b3cc4;
-  --accent-soft: #ede9fe;
-  --accent-strong: #4c1d95;
-  --bg: #f8fafc;
+  /* Template palette. */
+  --heading: #343c6a; /* "Primary 2": titles and navy text */
+  --nav-active: #2d60ff; /* "Primary 3": the active nav entry, per frame 78:351 */
+  --accent: #1814f3; /* buttons, pager, outlined buttons, focus rings */
+  --accent-hover: #120fc2;
+  --accent-soft: #edf1f7;
+  --bg: #f5f7fa;
   --surface: #ffffff;
-  --surface-muted: #f1f5f9;
-  --border: #e2e8f0;
-  --border-subtle: #f1f5f9;
-  --text: #0f172a;
-  --text-secondary: #475569;
-  --muted: #64748b;
+  --border: #e6eff5;
+  --text: #232323;
+  /* The template's #718ebf (and #b1b1b1 for inactive nav) are darkened so
+     muted text reaches 4.5:1 on white. */
+  --muted: #5b6f96;
+  --overlay: rgba(52, 60, 106, 0.3); /* --heading at 30%, behind the drawer */
+
+  /* The template has fewer shades than the earlier design, so these older
+     names now alias the values above. */
+  --accent-strong: var(--accent);
+  --surface-muted: var(--bg);
+  --border-subtle: var(--border);
+  --text-secondary: var(--muted);
+  /* Darker than the template's reds, which fail 4.5:1 as text. */
   --danger: #b42318;
 
-  --radius-card: 18px;
-  --radius-button: 12px;
+  --radius-card: 25px;
+  --radius-button: 50px;
   --radius-control: 10px;
   --radius-pill: 999px;
 
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  /* "Shadow 1". */
+  --shadow-card: 4px 4px 18px -2px rgba(231, 228, 232, 0.8);
+
+  /* Type scale: Inter, headings Semi Bold 28/22, section Medium 18,
+     body 16/15, small 13. */
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-h1: 28px;
+  --text-h2: 22px;
+  --text-h3: 18px;
+  --text-body: 16px;
+  --text-body-2: 15px;
+  --text-small: 13px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -28,13 +50,24 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
+  --space-7: 40px;
 
-  --sidebar-width: 248px;
-  --sidebar-collapsed-width: 76px;
+  --sidebar-width: 250px;
+  /* Sidebar geometry from frame 78:351: logo at 38px, nav icons at 44px
+     with their labels 26px after, 60px rows, a 6px active bar. */
+  --sidebar-inset: 38px;
+  --nav-inset: 44px;
+  --nav-gap: 26px;
+  --nav-row-height: 60px;
+  --nav-marker-width: 6px;
+  --logo-size: 36px;
+  --text-brand: 25px;
+  --topbar-height: 100px;
+  --topbar-height-phone: 70px;
   --content-max-width: 1200px;
   --target-size: 44px;
 
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   color: var(--text);
   background: var(--bg);
 }
@@ -49,50 +82,36 @@ body {
 }
 
 a {
-  color: var(--accent-hover);
+  color: var(--accent);
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Layout shell: a white sidebar and a white top bar around the grey page,
+   as in frame 78:351. */
 .layout {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
-  transition: grid-template-columns 0.15s ease;
-}
-
-.layout--collapsed {
-  grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: var(--space-5) var(--space-4);
+  gap: var(--space-3);
   background: var(--surface);
   border-right: 1px solid var(--border);
-  overflow: hidden;
-}
-
-.sidebar__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.layout--collapsed .sidebar__header {
-  flex-direction: column;
 }
 
 .sidebar__brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 var(--space-2);
-}
-
-.layout--collapsed .sidebar__brand {
-  padding: 0;
+  height: var(--topbar-height);
+  padding: 0 var(--sidebar-inset);
 }
 
 .sidebar__logo {
@@ -100,58 +119,36 @@ a {
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: var(--logo-size);
+  height: var(--logo-size);
+  border-radius: var(--radius-control);
   background: var(--accent);
   color: var(--surface);
 }
 
 .sidebar__brand-name {
-  font-size: 20px;
-  font-weight: 600;
+  color: var(--heading);
+  font-size: var(--text-brand);
+  font-weight: 800;
   letter-spacing: -0.02em;
   white-space: nowrap;
-}
-
-.layout--collapsed .sidebar__brand-name {
-  display: none;
-}
-
-.sidebar__toggle {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: var(--target-size);
-  height: var(--target-size);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.sidebar__toggle:hover {
-  background: var(--surface-muted);
-  color: var(--text);
 }
 
 .sidebar__nav {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
 }
 
 .sidebar__link {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  min-height: var(--target-size);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-control);
-  color: var(--text-secondary);
-  font-size: 15px;
+  gap: var(--nav-gap);
+  min-height: var(--nav-row-height);
+  padding: 0 var(--space-4) 0 var(--nav-inset);
+  color: var(--muted);
+  font-size: var(--text-h3);
+  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -161,46 +158,80 @@ a {
 }
 
 .sidebar__link:hover {
-  background: var(--surface-muted);
-  color: var(--text);
+  color: var(--heading);
 }
 
 .sidebar__link.active {
-  background: var(--surface-muted);
-  color: var(--text);
-  font-weight: 500;
+  color: var(--nav-active);
 }
 
-.layout--collapsed .sidebar__link {
-  justify-content: center;
-  padding: 0;
-}
-
-/* Hidden but still the link's accessible name while collapsed. */
-.layout--collapsed .sidebar__label {
+/* The template's active marker: a blue bar on the sidebar's left edge. */
+.sidebar__link.active::before {
+  content: "";
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--nav-marker-width);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: var(--nav-active);
+}
+
+.sidebar__link:focus-visible {
+  outline-offset: -2px;
+}
+
+.layout__backdrop {
+  display: none;
 }
 
 .main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  padding: 28px var(--space-6) 40px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--topbar-height);
+  padding: 0 var(--space-7);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar__menu {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target-size);
+  height: var(--target-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--heading);
+  cursor: pointer;
+}
+
+.topbar__menu:hover {
+  background: var(--surface-muted);
+}
+
+.topbar__title {
+  margin: 0;
+  color: var(--heading);
+  font-size: var(--text-h1);
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .main__content {
-  max-width: var(--content-max-width);
-  margin: 0 auto;
-}
-
-.main h1 {
-  margin: 0 0 var(--space-5);
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  width: 100%;
+  max-width: calc(var(--content-max-width) + 2 * var(--space-7));
+  padding: var(--space-5) var(--space-7) var(--space-7);
 }
 
 .message {
@@ -215,19 +246,6 @@ a {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-}
-
-.page__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.main .page__title {
-  margin: 0;
-  font-size: 40px;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
 }
 
 .page__description {
@@ -473,66 +491,67 @@ a {
   overflow-wrap: anywhere;
 }
 
-/* Phone width: the sidebar becomes a bar above the page and the collapse
-   toggle goes away, since there is no width to give back. */
+/* Phone width (frame 169:3352): the sidebar becomes a drawer opened by
+   the top bar's menu button, and the title centres between them. */
 @media (max-width: 720px) {
-  .layout,
-  .layout--collapsed {
+  .layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
   }
 
   .sidebar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: min(var(--sidebar-width), 85vw);
+    overflow-y: auto;
+    transform: translateX(-100%);
+    /* Hidden from Tab and screen readers while closed. */
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0.2s;
   }
 
-  .sidebar__header,
-  .layout--collapsed .sidebar__header {
-    flex-direction: row;
+  .layout--menu-open .sidebar {
+    transform: none;
+    visibility: visible;
+    box-shadow: var(--shadow-card);
   }
 
-  .sidebar__brand-name,
-  .layout--collapsed .sidebar__brand-name {
-    display: inline;
+  .layout--menu-open .layout__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: var(--overlay);
   }
 
-  .sidebar__toggle {
-    display: none;
+  .topbar {
+    min-height: var(--topbar-height-phone);
+    padding: 0 var(--space-4);
   }
 
-  .sidebar__nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-left: auto;
+  .topbar__menu {
+    display: flex;
   }
 
-  .layout--collapsed .sidebar__link {
-    padding: 0 var(--space-3);
+  .topbar__title {
+    flex: 1;
+    /* Offsets the menu button so the title sits in the true centre. */
+    margin-right: var(--target-size);
+    font-size: var(--text-h3);
+    text-align: center;
   }
 
-  .layout--collapsed .sidebar__label {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip: auto;
-  }
-
-  .main {
+  .main__content {
     padding: var(--space-5) var(--space-4) var(--space-6);
-  }
-
-  .main .page__title {
-    font-size: 30px;
   }
 
   .main .tender-detail__title {
     font-size: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
   }
 }

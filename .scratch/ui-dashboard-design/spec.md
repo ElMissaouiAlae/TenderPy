@@ -1,6 +1,8 @@
 # Spec: Dashboard design applied to the tender list and tender detail
 
-Status: ready-for-agent
+Status: wontfix
+
+Replaced by `.scratch/ui-dashboard-figma/spec.md` (2026-11-21): the dashboard now follows the BankDash Figma template instead of the design canvas below.
 
 ## Problem Statement
 

@@ -72,9 +72,10 @@ function TenderDetailView({ tender }: { tender: TenderDetail }) {
             {tender.procurement_type && <span className="pill">{tender.procurement_type}</span>}
           </div>
         )}
-        <h1 className="tender-detail__title">
+        {/* h2: the top bar's "Tenders" is the page's h1. */}
+        <h2 className="tender-detail__title">
           <Value value={tender.tender_object} />
-        </h1>
+        </h2>
         <p className="tender-detail__meta">
           <Value value={tender.public_buyer} /> · Ref. <Value value={tender.reference_number} /> ·
           Published <Value value={tender.publication_date} />

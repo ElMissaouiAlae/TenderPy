@@ -39,10 +39,8 @@ export function TenderListPage() {
 
   return (
     <section className="page">
-      <header className="page__header">
-        <h1 className="page__title">Tenders</h1>
-        <p className="page__description">Every tender whose DCE archive is available.</p>
-      </header>
+      {/* The page title is the top bar's heading. */}
+      <p className="page__description">Every tender whose DCE archive is available.</p>
       <div className="card card--table">
         {state.kind === "loading" && <p className="card__message message">Loading tenders…</p>}
         {state.kind === "error" && (
