@@ -27,3 +27,7 @@ class RecordNotFoundError(PersistenceError):
 
 class TransactionError(PersistenceError):
     """Raised when a database transaction fails."""
+
+
+class DocumentNotFoundError(PersistenceError):
+    """Raised when document storage has nothing stored under a document name."""

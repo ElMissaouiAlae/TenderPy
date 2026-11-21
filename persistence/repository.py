@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import List
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from core.models import Tender
 from persistence.database import Database
 from persistence.exceptions import RecordNotFoundError, RepositoryError
 from persistence.mapper import to_domain, to_record
-from persistence.models import INDEXABLE_LAST_STATUSES, TenderRecord, TenderStatus
+from persistence.models import TenderRecord, TenderStatus, failed_after_upload
 
 
 class TenderRepository:
@@ -226,12 +226,7 @@ class TenderRepository:
                     .where(
                         or_(
                             TenderRecord.status == TenderStatus.UPLOADED.value,
-                            and_(
-                                TenderRecord.status == TenderStatus.FAILED.value,
-                                TenderRecord.last_status.in_(
-                                    [status.value for status in INDEXABLE_LAST_STATUSES]
-                                ),
-                            ),
+                            failed_after_upload(),
                         )
                     )
                     .order_by(TenderRecord.id)

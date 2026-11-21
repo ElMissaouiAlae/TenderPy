@@ -1,0 +1,538 @@
+/* Design tokens, from the dashboard design canvas. Components use these
+   rather than raw values so later pages share one look. */
+:root {
+  --accent: #6a4be0;
+  --accent-hover: #5b3cc4;
+  --accent-soft: #ede9fe;
+  --accent-strong: #4c1d95;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --muted: #64748b;
+  --danger: #b42318;
+
+  --radius-card: 18px;
+  --radius-button: 12px;
+  --radius-control: 10px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --sidebar-width: 248px;
+  --sidebar-collapsed-width: 76px;
+  --content-max-width: 1200px;
+  --target-size: 44px;
+
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+a {
+  color: var(--accent-hover);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100vh;
+  transition: grid-template-columns 0.15s ease;
+}
+
+.layout--collapsed {
+  grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.layout--collapsed .sidebar__header {
+  flex-direction: column;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--space-2);
+}
+
+.layout--collapsed .sidebar__brand {
+  padding: 0;
+}
+
+.sidebar__logo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.sidebar__brand-name {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.layout--collapsed .sidebar__brand-name {
+  display: none;
+}
+
+.sidebar__toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target-size);
+  height: var(--target-size);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.sidebar__toggle:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-size);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  font-size: 15px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sidebar__link svg {
+  flex: none;
+}
+
+.sidebar__link:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.sidebar__link.active {
+  background: var(--surface-muted);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.layout--collapsed .sidebar__link {
+  justify-content: center;
+  padding: 0;
+}
+
+/* Hidden but still the link's accessible name while collapsed. */
+.layout--collapsed .sidebar__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.main {
+  min-width: 0;
+  padding: 28px var(--space-6) 40px;
+}
+
+.main__content {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.main h1 {
+  margin: 0 0 var(--space-5);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.message {
+  color: var(--muted);
+}
+
+.message--error {
+  color: var(--danger);
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.page__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.main .page__title {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.page__description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+/* A card whose content runs edge to edge, like the design's tables. */
+.card.card--table {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.card__message {
+  margin: 0;
+  padding: var(--space-5);
+}
+
+/* Wide tables scroll here, inside their card, rather than the page. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.tender-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+}
+
+.tender-table th,
+.tender-table td {
+  text-align: left;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tender-table th {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tender-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tender-table__row {
+  position: relative;
+}
+
+.tender-table__row:hover {
+  background: var(--bg);
+}
+
+.tender-table__link {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+/* Stretches the link over its row, so the whole row is the click target. */
+.tender-table__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.tender-table__link:focus-visible {
+  outline: none;
+}
+
+.tender-table__row:has(.tender-table__link:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tender-table__meta {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tender-table__deadline {
+  width: 1%;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.placeholder {
+  color: var(--muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-size);
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.tender-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.tender-detail > .back-link {
+  align-self: flex-start;
+}
+
+.tender-detail__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.main .tender-detail__title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.tender-detail__meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.tender-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-size);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-button);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button--primary {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.button--primary:hover {
+  background: var(--accent-hover);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pill {
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pill--accent {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 14px;
+  border-radius: var(--radius-button);
+  background: var(--bg);
+}
+
+.fact dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fact dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Phone width: the sidebar becomes a bar above the page and the collapse
+   toggle goes away, since there is no width to give back. */
+@media (max-width: 720px) {
+  .layout,
+  .layout--collapsed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar__header,
+  .layout--collapsed .sidebar__header {
+    flex-direction: row;
+  }
+
+  .sidebar__brand-name,
+  .layout--collapsed .sidebar__brand-name {
+    display: inline;
+  }
+
+  .sidebar__toggle {
+    display: none;
+  }
+
+  .sidebar__nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+
+  .layout--collapsed .sidebar__link {
+    padding: 0 var(--space-3);
+  }
+
+  .layout--collapsed .sidebar__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+  }
+
+  .main {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .main .page__title {
+    font-size: 30px;
+  }
+
+  .main .tender-detail__title {
+    font-size: 26px;
+  }
+}

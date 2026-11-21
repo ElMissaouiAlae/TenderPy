@@ -11,6 +11,8 @@ A single procurement opportunity discovered from the source platform, identified
 The single zip file containing a tender's consultation documents, fetched via `TenderDownloader`. One archive per tender (1:1) — there is currently no concept of tracking the individual files inside it separately.
 _Avoid_: document (ambiguous between "the archive" and "a file inside it" — always say "DCE archive" for the former)
 
+A tender **has a DCE archive** once it has reached `UPLOADED`: its status is `UPLOADED` or later, or its status is `FAILED` with a last status of `UPLOADED` or later. Tenders that are `DISCOVERED`, `DOWNLOADING`, or failed before upload have none. The rule lives in `persistence.models.has_dce_archive`.
+
 **DCE file**:
 A single file extracted from a DCE archive (including files found inside nested zips). Belongs to exactly one tender. The unit that gets chunked.
 _Avoid_: document, attachment
