@@ -3,9 +3,9 @@ from datetime import date
 import pytest
 from bs4 import BeautifulSoup
 
+from core.exceptions import HtmlParsingError
 from core.models import Tender
 from discovery.parser import SearchCriteria, SearchResultPage, SearchResultParser
-from core.exceptions import HtmlParsingError
 
 
 def test_search_criteria_defaults_to_none():

@@ -26,8 +26,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
 
-    pass
-
 
 class TenderStatus(str, Enum):
     """Enumeration of possible tender processing statuses.

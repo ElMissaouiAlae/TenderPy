@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+
 import requests
 
 from .exceptions import HtmlParsingError, PradoStateError, SessionInitializationError

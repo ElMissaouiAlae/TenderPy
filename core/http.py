@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-from types import TracebackType
 import time
+from types import TracebackType
+from typing import Any, ClassVar, Self
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -17,7 +17,7 @@ from .exceptions import HttpRequestError
 class HttpClient:
     """Thin wrapper around requests.Session with sensible defaults and auto-retries."""
 
-    DEFAULT_HEADERS = {
+    DEFAULT_HEADERS: ClassVar[dict[str, str]] = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
@@ -115,7 +115,7 @@ class HttpClient:
         self._session.adapters.clear()
 
     # Context Manager support for 'with HttpClient() as client:' syntax
-    def __enter__(self) -> HttpClient:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

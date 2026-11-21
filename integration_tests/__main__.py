@@ -8,8 +8,6 @@ import sys
 from .config import BASE_URL, logger
 from .date_range_search import test_date_range_search
 from .indexing_selection import test_indexing_selection
-
-
 from .status_transitions import test_status_transitions
 from .tender_lookup import test_tender_lookup
 from .vector_store_replace import test_vector_store_replace
@@ -29,7 +27,7 @@ def main():
         test_tender_lookup()
         test_vector_store_roundtrip()
         test_vector_store_replace()
-    except Exception:
+    except Exception:  # noqa: BLE001 - any failure ends the run with exit code 1
         logger.error("Integration test failed - see above for details")
         sys.exit(1)
 

@@ -51,7 +51,7 @@ def test_date_range_search():
             orchestrator = DiscoveryOrchestrator(session, repository)
 
             # Search with date range (last 2 days)
-            end_date = date.today()
+            end_date = date.today()  # noqa: DTZ011 - the portal filters by local date
             start_date = end_date - timedelta(days=2)
 
             criteria = SearchCriteria(

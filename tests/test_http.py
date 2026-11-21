@@ -1,11 +1,12 @@
 """Tests for core.http module."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from requests.exceptions import RequestException
 
-from core.http import HttpClient
 from core.exceptions import HttpRequestError
+from core.http import HttpClient
 
 
 def test_http_client_initialization_with_defaults():

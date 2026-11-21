@@ -143,8 +143,7 @@ class IndexingPipeline:
                 status, reason = DceFileStatus.CHUNKED, None
             except UnsupportedFileError as exc:
                 status, reason, text_chunks = DceFileStatus.SKIPPED, str(exc), []
-            except Exception as exc:
-                # A single bad DCE file must never fail the tender.
+            except Exception as exc:  # noqa: BLE001 - one bad DCE file must never fail the tender
                 status, reason = DceFileStatus.FAILED, f"{type(exc).__name__}: {exc}"
                 text_chunks = []
         if reason is not None:

@@ -20,17 +20,17 @@ from persistence.models import TenderRecord, TenderStatus
 from persistence.repository import TenderRepository
 
 __all__ = [
-    "Settings",
-    "Database",
-    "TenderRepository",
-    "TenderRecord",
-    "TenderStatus",
-    "verify_schema",
-    "PersistenceError",
     "ConfigurationError",
+    "Database",
     "DatabaseConnectionError",
-    "RepositoryError",
     "DuplicateTenderError",
+    "PersistenceError",
     "RecordNotFoundError",
+    "RepositoryError",
+    "Settings",
+    "TenderRecord",
+    "TenderRepository",
+    "TenderStatus",
     "TransactionError",
+    "verify_schema",
 ]

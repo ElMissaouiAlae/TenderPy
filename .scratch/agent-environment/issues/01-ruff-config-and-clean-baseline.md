@@ -4,10 +4,15 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Ruff configuration lives in the project's packaging config, with the rule set and exclusions above
-- [ ] `ruff check` reports zero errors on the whole repo
-- [ ] Fixes that change behaviour (not just style or imports) are called out in the commit message
-- [ ] Unit tests still pass
-- [ ] Record whether `ruff format --check` passes as-is (this decides whether the pre-commit check includes it)
+- [x] Ruff configuration lives in the project's packaging config, with the rule set and exclusions above
+- [x] `ruff check` reports zero errors on the whole repo
+- [x] Fixes that change behaviour (not just style or imports) are called out in the commit message
+- [x] Unit tests still pass
+- [x] Record whether `ruff format --check` passes as-is (this decides whether the pre-commit check includes it)
+
+## Comments
+
+- `ruff format --check` does **not** pass as-is: 44 files would be reformatted (ruff 0.16.7). Ticket 02's guardrail should leave the format check out for now.
+- The baseline was 60 errors on ruff 0.16.7. Its default rule set already includes UP/BLE/DTZ/RUF/C4/PYI, so the config only adds `I` via `extend-select`.

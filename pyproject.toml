@@ -34,3 +34,10 @@ pythonpath = ["."]
 
 [tool.setuptools.packages.find]
 include = ["core*", "discovery*", "persistence*", "indexing*", "api*"]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [".venv", "node_modules", ".scratch", ".vector_db"]
+
+[tool.ruff.lint]
+extend-select = ["I"]
