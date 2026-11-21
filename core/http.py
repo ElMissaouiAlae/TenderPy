@@ -8,6 +8,7 @@ import time
 
 import requests
 from requests.adapters import HTTPAdapter
+from requests.cookies import RequestsCookieJar
 from urllib3.util import Retry
 
 from .exceptions import HttpRequestError
@@ -30,7 +31,7 @@ class HttpClient:
 
     # Expose session cookies for external access
     @property
-    def cookies(self) -> requests.cookies.RequestsCookieJar:
+    def cookies(self) -> RequestsCookieJar:
         return self._session.cookies
 
     def __init__(self, base_url: str = "", timeout: int = 10, retries: int = 3, request_delay: float = 0.0) -> None:
