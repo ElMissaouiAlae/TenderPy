@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 import boto3
+from botocore.exceptions import ClientError
 
 from persistence.config import Settings
-from persistence.exceptions import ConfigurationError
+from persistence.exceptions import ConfigurationError, DocumentNotFoundError
 
 
 @runtime_checkable
@@ -32,6 +33,9 @@ class DocumentStorage(Protocol):
 
         Returns:
             The stored document bytes.
+
+        Raises:
+            DocumentNotFoundError: If nothing is stored under the document name.
         """
 
 
@@ -69,10 +73,16 @@ class LocalDocumentStorage:
 
         Returns:
             The stored document bytes.
+
+        Raises:
+            DocumentNotFoundError: If no file exists under the document name.
         """
         file_path = self.storage_path / document_name
-        with file_path.open("rb") as file:
-            return file.read()
+        try:
+            with file_path.open("rb") as file:
+                return file.read()
+        except FileNotFoundError as error:
+            raise DocumentNotFoundError(f"No document stored as {document_name}") from error
 
     def delete_document(self, document_name: str) -> None:
         """Delete a document from local storage.
@@ -128,8 +138,14 @@ class S3DocumentStorage:
 
         Raises:
             ConfigurationError: If no S3 bucket is configured.
+            DocumentNotFoundError: If the bucket has no object under the key.
         """
-        response = self._s3.get_object(Bucket=self._bucket_name(), Key=document_name)
+        try:
+            response = self._s3.get_object(Bucket=self._bucket_name(), Key=document_name)
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") == "NoSuchKey":
+                raise DocumentNotFoundError(f"No document stored as {document_name}") from error
+            raise
         return response["Body"].read()
 
     def _bucket_name(self) -> str:

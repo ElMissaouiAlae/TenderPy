@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { ApiError, getTender, type TenderDetail } from "../api/client";
+import { ApiError, dceArchiveUrl, getTender, type TenderDetail } from "../api/client";
 
 type State =
   | { kind: "loading" }
@@ -79,6 +79,11 @@ function TenderDetailView({ tender }: { tender: TenderDetail }) {
           <Value value={tender.public_buyer} /> · Ref. <Value value={tender.reference_number} /> ·
           Published <Value value={tender.publication_date} />
         </p>
+        <div className="tender-detail__actions">
+          <a className="button button--primary" href={dceArchiveUrl(tender.id)}>
+            Download DCE archive
+          </a>
+        </div>
       </header>
       <section className="card" aria-labelledby="key-facts-title">
         <h2 id="key-facts-title" className="card__title">

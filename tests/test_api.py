@@ -155,3 +155,41 @@ def test_detail_is_not_found_when_the_lookup_has_no_such_tender(make_client):
     response = client.get("/tenders/4")
 
     assert response.status_code == 404
+
+
+ARCHIVE_BYTES = b"PK\x03\x04archive-bytes"
+
+
+def test_archive_download_returns_the_stored_zip_as_an_attachment(make_client, tmp_path):
+    (tmp_path / "T-3_ORG.zip").write_bytes(ARCHIVE_BYTES)
+    client = make_client(details=[detail(3)])
+
+    response = client.get("/tenders/3/dce-archive")
+
+    assert response.status_code == 200
+    assert response.content == ARCHIVE_BYTES
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["content-disposition"] == 'attachment; filename="T-3_ORG.zip"'
+
+
+def test_archive_download_is_not_found_for_an_unknown_tender_or_one_without_a_dce_archive(
+    make_client, tmp_path
+):
+    # The lookup returns no tender in both cases; which tenders have a DCE
+    # archive is checked against the real database in
+    # integration_tests/tender_lookup.py. The stored zip shows that a file in
+    # storage alone is not enough.
+    (tmp_path / "T-4_ORG.zip").write_bytes(ARCHIVE_BYTES)
+    client = make_client(details=[detail(3)])
+
+    response = client.get("/tenders/4/dce-archive")
+
+    assert response.status_code == 404
+
+
+def test_archive_download_is_not_found_when_the_archive_is_missing_from_storage(make_client):
+    client = make_client(details=[detail(3)])
+
+    response = client.get("/tenders/3/dce-archive")
+
+    assert response.status_code == 404

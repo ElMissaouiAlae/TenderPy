@@ -3,10 +3,12 @@
 from io import BytesIO
 from unittest.mock import ANY, Mock
 
+import boto3
 import pytest
+from botocore.stub import Stubber
 
 from persistence.config import Settings
-from persistence.exceptions import ConfigurationError
+from persistence.exceptions import ConfigurationError, DocumentNotFoundError
 from persistence.file_storage import (
     DocumentStorage,
     LocalDocumentStorage,
@@ -93,3 +95,28 @@ def test_s3_document_storage_load_requires_a_configured_bucket():
 
 def test_document_storage_interface_exposes_loading():
     assert hasattr(DocumentStorage, "load_document")
+
+
+def test_local_document_storage_load_of_a_missing_document_is_not_found(tmp_path):
+    storage = LocalDocumentStorage(tmp_path)
+
+    with pytest.raises(DocumentNotFoundError, match="tender-123.zip"):
+        storage.load_document("tender-123.zip")
+
+
+def test_s3_document_storage_load_of_a_missing_key_is_not_found():
+    settings = Settings(
+        database_url="postgresql://user:pass@localhost/db",
+        s3_bucket_name="tenders-bucket",
+    )
+    s3_client = boto3.client(
+        "s3", region_name="eu-west-3", aws_access_key_id="test", aws_secret_access_key="test"
+    )
+    storage = S3DocumentStorage(settings, s3_client)
+
+    with Stubber(s3_client) as stubber:
+        stubber.add_client_error(
+            "get_object", service_error_code="NoSuchKey", http_status_code=404
+        )
+        with pytest.raises(DocumentNotFoundError, match="tender-123.zip"):
+            storage.load_document("tender-123.zip")

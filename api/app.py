@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict
 
+from downloader import dce_archive_name
+from persistence.exceptions import DocumentNotFoundError
 from persistence.file_storage import DocumentStorage
-from persistence.tender_lookup import TenderLookup
+from persistence.tender_lookup import TenderDetail, TenderLookup
 
 DEFAULT_LIST_LIMIT = 50
 MAX_LIST_LIMIT = 200
@@ -54,6 +56,13 @@ def create_app(tender_lookup: TenderLookup, document_storage: DocumentStorage) -
     """
     app = FastAPI(title="TenderPy")
 
+    def require_tender(id: int) -> TenderDetail:
+        """Return a tender that has a DCE archive, or respond 404."""
+        detail = tender_lookup.get_with_dce_archive(id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Tender not found")
+        return detail
+
     @app.get("/tenders", response_model=list[TenderSummaryResponse])
     def list_tenders(
         limit: int = Query(DEFAULT_LIST_LIMIT, ge=1, le=MAX_LIST_LIMIT),
@@ -68,9 +77,22 @@ def create_app(tender_lookup: TenderLookup, document_storage: DocumentStorage) -
     @app.get("/tenders/{id}", response_model=TenderDetailResponse)
     def get_tender(id: int) -> TenderDetailResponse:
         """Return one tender that has a DCE archive."""
-        detail = tender_lookup.get_with_dce_archive(id)
-        if detail is None:
-            raise HTTPException(status_code=404, detail="Tender not found")
+        detail = require_tender(id)
         return TenderDetailResponse.model_validate(detail)
+
+    @app.get("/tenders/{id}/dce-archive", response_class=Response)
+    def download_dce_archive(id: int) -> Response:
+        """Return a tender's DCE archive as a zip attachment."""
+        detail = require_tender(id)
+        archive_name = dce_archive_name(detail.tender_id, detail.organization_acronym)
+        try:
+            archive = document_storage.load_document(archive_name)
+        except DocumentNotFoundError as error:
+            raise HTTPException(status_code=404, detail="DCE archive not found") from error
+        return Response(
+            content=archive,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{archive_name}"'},
+        )
 
     return app

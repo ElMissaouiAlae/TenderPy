@@ -62,3 +62,9 @@ export function listTenders(
 export function getTender(id: string, signal?: AbortSignal): Promise<TenderDetail> {
   return getJson<TenderDetail>(`/tenders/${encodeURIComponent(id)}`, signal);
 }
+
+// URL of a tender's DCE archive. Used as a plain link so the browser handles
+// the download itself; the API streams the zip from document storage.
+export function dceArchiveUrl(id: number): string {
+  return `${API_BASE}/tenders/${id}/dce-archive`;
+}
