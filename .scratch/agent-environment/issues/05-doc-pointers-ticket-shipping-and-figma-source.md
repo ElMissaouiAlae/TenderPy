@@ -8,9 +8,9 @@ Spec: `.scratch/agent-environment/spec.md`.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The issue-tracker doc has a "When a ticket ships" section with the three actions, written as positive steps
-- [ ] No CLAUDE.md line is added; the issue-tracker doc stays the single source for ticket conventions
-- [ ] The dashboard-design spec has a "Design source" line with the file key, both node ids, and each frame's role in TenderPy
-- [ ] The Design source line names the Figma calls to make on those nodes
+- [x] The issue-tracker doc has a "When a ticket ships" section with the three actions, written as positive steps
+- [x] No CLAUDE.md line is added; the issue-tracker doc stays the single source for ticket conventions
+- [x] The dashboard-design spec has a "Design source" line with the file key, both node ids, and each frame's role in TenderPy
+- [x] The Design source line names the Figma calls to make on those nodes
