@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol
 
-from sqlalchemy import delete, select
+from sqlalchemy import Select, delete, select
+from sqlalchemy.orm import Session
 
 from core.models import Tender
 from indexing.models import DceFile, SearchHit
@@ -22,12 +23,17 @@ class VectorStore(Protocol):
         ...
 
     def search(
-        self, query_embedding: Sequence[float], embedding_model: str, limit: int = 10
+        self,
+        query_embedding: Sequence[float],
+        embedding_model: str,
+        limit: int = 10,
+        tender: Tender | None = None,
     ) -> list[SearchHit]:
         """Return the chunks nearest to query_embedding by cosine distance.
 
         Only chunks embedded with embedding_model are considered, so vectors
-        from different models are never compared.
+        from different models are never compared. When tender is given, only
+        that tender's chunks are searched, exactly.
         """
         ...
 
@@ -66,17 +72,7 @@ class PgVectorStore:
 
     def _replace_tender_files(self, tender: Tender, dce_files: Sequence[DceFile]) -> None:
         with self._database.session() as session:
-            tender_record_id = session.scalar(
-                select(TenderRecord.id).where(
-                    TenderRecord.tender_id == tender.tender_id,
-                    TenderRecord.organization_acronym == tender.organization_acronym,
-                )
-            )
-            if tender_record_id is None:
-                raise RecordNotFoundError(
-                    f"No tender found for tender_id={tender.tender_id!r}, "
-                    f"organization_acronym={tender.organization_acronym!r}"
-                )
+            tender_record_id = _tender_record_id(session, tender)
 
             session.execute(
                 delete(DceFileRecord).where(DceFileRecord.tender_record_id == tender_record_id)
@@ -105,42 +101,39 @@ class PgVectorStore:
                 )
 
     def search(
-        self, query_embedding: Sequence[float], embedding_model: str, limit: int = 10
+        self,
+        query_embedding: Sequence[float],
+        embedding_model: str,
+        limit: int = 10,
+        tender: Tender | None = None,
     ) -> list[SearchHit]:
         """Return the chunks nearest to query_embedding by cosine distance.
+
+        Without a tender, every tender's chunks are searched through the HNSW
+        index (approximate). With a tender, only its chunks are searched, by
+        an exact scan: filtering an approximate index scan afterwards would
+        drop most of one tender's chunks once the store holds many tenders.
 
         Args:
             query_embedding: Vector to search with.
             embedding_model: Only chunks embedded with this model are compared.
             limit: Maximum number of hits.
+            tender: When given, only this tender's chunks are searched.
 
         Returns:
             Hits ordered nearest first.
 
         Raises:
+            RecordNotFoundError: if tender is given and does not exist.
             RepositoryError: if the query fails.
         """
-        distance = ChunkRecord.embedding.cosine_distance(list(query_embedding))
-        stmt = (
-            select(
-                TenderRecord.tender_id,
-                TenderRecord.organization_acronym,
-                DceFileRecord.path,
-                ChunkRecord.chunk_index,
-                ChunkRecord.text,
-                ChunkRecord.page_numbers,
-                ChunkRecord.heading_path,
-                distance.label("distance"),
-            )
-            .join(DceFileRecord, ChunkRecord.dce_file_id == DceFileRecord.id)
-            .join(TenderRecord, DceFileRecord.tender_record_id == TenderRecord.id)
-            .where(ChunkRecord.embedding_model == embedding_model)
-            .order_by(distance)
-            .limit(limit)
-        )
         try:
             with self._database.session() as session:
+                tender_record_id = None if tender is None else _tender_record_id(session, tender)
+                stmt = _search_statement(query_embedding, embedding_model, limit, tender_record_id)
                 rows = session.execute(stmt).all()
+        except RecordNotFoundError:
+            raise
         except Exception as exc:
             raise RepositoryError(f"Failed to search chunks: {exc}") from exc
         return [
@@ -156,3 +149,69 @@ class PgVectorStore:
             )
             for row in rows
         ]
+
+
+def _tender_record_id(session: Session, tender: Tender) -> int:
+    """Return the id of the tender's record.
+
+    Raises:
+        RecordNotFoundError: if no tender matches the given identity.
+    """
+    tender_record_id = session.scalar(
+        select(TenderRecord.id).where(
+            TenderRecord.tender_id == tender.tender_id,
+            TenderRecord.organization_acronym == tender.organization_acronym,
+        )
+    )
+    if tender_record_id is None:
+        raise RecordNotFoundError(
+            f"No tender found for tender_id={tender.tender_id!r}, "
+            f"organization_acronym={tender.organization_acronym!r}"
+        )
+    return tender_record_id
+
+
+def _search_statement(
+    query_embedding: Sequence[float],
+    embedding_model: str,
+    limit: int,
+    tender_record_id: int | None,
+) -> Select:
+    """Build the nearest-chunks query, scoped to one tender record when given."""
+    distance = ChunkRecord.embedding.cosine_distance(list(query_embedding))
+    chunks = select(
+        ChunkRecord.dce_file_id,
+        ChunkRecord.chunk_index,
+        ChunkRecord.text,
+        ChunkRecord.page_numbers,
+        ChunkRecord.heading_path,
+        distance.label("distance"),
+    ).where(ChunkRecord.embedding_model == embedding_model)
+    if tender_record_id is None:
+        # Ordering by the distance expression lets Postgres use the HNSW index.
+        nearest = chunks.order_by(distance).limit(limit).subquery("nearest")
+    else:
+        # The HNSW index cannot be read through a materialized CTE, so the
+        # tender's chunks are always scanned and sorted exactly.
+        nearest = (
+            chunks.join(DceFileRecord, ChunkRecord.dce_file_id == DceFileRecord.id)
+            .where(DceFileRecord.tender_record_id == tender_record_id)
+            .cte("nearest")
+            .prefix_with("MATERIALIZED")
+        )
+    return (
+        select(
+            TenderRecord.tender_id,
+            TenderRecord.organization_acronym,
+            DceFileRecord.path,
+            nearest.c.chunk_index,
+            nearest.c.text,
+            nearest.c.page_numbers,
+            nearest.c.heading_path,
+            nearest.c.distance,
+        )
+        .join(DceFileRecord, nearest.c.dce_file_id == DceFileRecord.id)
+        .join(TenderRecord, DceFileRecord.tender_record_id == TenderRecord.id)
+        .order_by(nearest.c.distance)
+        .limit(limit)
+    )

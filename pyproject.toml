@@ -33,7 +33,7 @@ dev = [
 pythonpath = ["."]
 
 [tool.setuptools.packages.find]
-include = ["core*", "discovery*", "persistence*", "indexing*", "api*"]
+include = ["core*", "discovery*", "persistence*", "indexing*", "api*", "retrieval*"]
 
 [tool.ruff]
 target-version = "py311"
