@@ -14,6 +14,7 @@ from api.app import create_app
 from persistence import Database, Settings
 from persistence.database_probe import PostgresDatabaseProbe
 from persistence.file_storage import S3DocumentStorage
+from persistence.insights import PostgresInsights
 from persistence.tender_lookup import PostgresTenderLookup
 
 logger = logging.getLogger("api")
@@ -38,6 +39,7 @@ def main() -> None:
             )
         app = create_app(
             tender_lookup=PostgresTenderLookup(database),
+            insights=PostgresInsights(database),
             document_storage=S3DocumentStorage(settings),
             database_probe=database_probe,
         )

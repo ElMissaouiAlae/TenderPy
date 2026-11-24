@@ -1,8 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { dceArchiveUrl, listTenders, type TenderSummary } from "../api/client";
+import { DaysLeft } from "../components/DaysLeft";
 import { Deadline } from "../components/Deadline";
+import { orDash } from "../components/orDash";
 
 const PAGE_SIZE = 20;
 const MAX_OBJECT_LENGTH = 120;
@@ -25,20 +27,20 @@ function tenderTitle(tender: TenderSummary): string {
   return text.length > MAX_OBJECT_LENGTH ? `${text.slice(0, MAX_OBJECT_LENGTH).trimEnd()}…` : text;
 }
 
-// A muted dash stands in for a missing value.
-function orDash(value: string | null): ReactNode {
-  return value || <span className="empty-value">—</span>;
-}
-
 export function TenderListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parsePage(searchParams.get("page"));
+  // `?closing_soon=1`: only open tenders closing within 14 days.
+  const closingSoon = searchParams.get("closing_soon") === "1";
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();
     setState({ kind: "loading" });
-    listTenders({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, controller.signal)
+    listTenders(
+      { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE, closingSoon },
+      controller.signal,
+    )
       .then((tenders) => setState({ kind: "loaded", tenders }))
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
@@ -47,10 +49,17 @@ export function TenderListPage() {
         }
       });
     return () => controller.abort();
-  }, [page]);
+  }, [page, closingSoon]);
+
+  function goTo(target: number, onlyClosingSoon: boolean) {
+    const params: Record<string, string> = {};
+    if (onlyClosingSoon) params.closing_soon = "1";
+    if (target !== 1) params.page = String(target);
+    setSearchParams(params);
+  }
 
   function goToPage(target: number) {
-    setSearchParams(target === 1 ? {} : { page: String(target) });
+    goTo(target, closingSoon);
     // The pager sits below the table, so start the new page from its top.
     window.scrollTo(0, 0);
   }
@@ -61,7 +70,22 @@ export function TenderListPage() {
   return (
     <section className="page">
       {/* The page title is the top bar's heading. */}
-      <p className="page__description">Every discovered tender.</p>
+      <div className="page__toolbar">
+        <p className="page__description">
+          {closingSoon
+            ? "Open tenders closing within 14 days, nearest deadline first."
+            : "Every discovered tender."}
+        </p>
+        {/* Changing the filter starts again from page 1. */}
+        <button
+          type="button"
+          className="filter-toggle"
+          aria-pressed={closingSoon}
+          onClick={() => goTo(1, !closingSoon)}
+        >
+          Closing soon
+        </button>
+      </div>
       <div className="card card--table">
         {state.kind === "loading" && <p className="card__message message">Loading tenders…</p>}
         {state.kind === "error" && (
@@ -71,7 +95,11 @@ export function TenderListPage() {
         )}
         {state.kind === "loaded" && state.tenders.length === 0 && (
           <p className="card__message message">
-            {page === 1 ? "No tender has been discovered yet." : "No more tenders."}
+            {page !== 1
+              ? "No more tenders."
+              : closingSoon
+                ? "No open tender closes within the next 14 days."
+                : "No tender has been discovered yet."}
           </p>
         )}
         {state.kind === "loaded" && state.tenders.length > 0 && (
@@ -106,7 +134,10 @@ export function TenderListPage() {
                       <td className="tender-table__reference">{orDash(tender.reference_number)}</td>
                       <td className="tender-table__buyer">{orDash(tender.public_buyer)}</td>
                       <td className="tender-table__deadline">
-                        <Deadline value={tender.deadline} />
+                        <div className="deadline-cell">
+                          <Deadline value={tender.deadline} />
+                          <DaysLeft deadline={tender.deadline} />
+                        </div>
                       </td>
                       <td className="tender-table__download">
                         {/* Sits above the row link, so it downloads without opening the tender. */}

@@ -33,6 +33,24 @@ export interface TenderDetail {
   has_dce_archive: boolean;
 }
 
+// An open tender closing within 14 days, as listed on the Insights page.
+export interface ClosingSoonTender {
+  id: number;
+  reference_number: string | null;
+  tender_object: string | null;
+  public_buyer: string | null;
+  // ISO 8601 with Morocco's offset, e.g. "2026-11-04T10:00:00+01:00".
+  deadline: string;
+}
+
+// Open tenders by time left, each bucket nearest deadline first: less than
+// 3 days, 3 to 7 days, and 7 to 14 days.
+export interface ClosingSoon {
+  lt3: ClosingSoonTender[];
+  "3to7": ClosingSoonTender[];
+  "7to14": ClosingSoonTender[];
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -51,15 +69,22 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T;
 }
 
+// With closingSoon, only open tenders closing within 14 days, nearest
+// deadline first; otherwise every tender, newest publication first.
 export function listTenders(
-  { limit, offset }: { limit?: number; offset?: number } = {},
+  { limit, offset, closingSoon }: { limit?: number; offset?: number; closingSoon?: boolean } = {},
   signal?: AbortSignal,
 ): Promise<TenderSummary[]> {
   const params = new URLSearchParams();
   if (limit !== undefined) params.set("limit", String(limit));
   if (offset !== undefined) params.set("offset", String(offset));
+  if (closingSoon) params.set("closing_soon", "true");
   const query = params.size > 0 ? `?${params}` : "";
   return getJson<TenderSummary[]>(`/tenders${query}`, signal);
+}
+
+export function getClosingSoon(signal?: AbortSignal): Promise<ClosingSoon> {
+  return getJson<ClosingSoon>("/insights/closing-soon", signal);
 }
 
 // Rejects with an ApiError of status 404 when the tender does not exist.

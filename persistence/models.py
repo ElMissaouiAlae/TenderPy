@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import ClassVar
 
@@ -125,6 +125,24 @@ def has_dce_archive() -> ColumnElement[bool]:
     return or_(
         TenderRecord.status.in_([status.value for status in INDEXABLE_LAST_STATUSES]),
         failed_after_upload(),
+    )
+
+
+# An open tender is closing soon when its deadline falls within this window.
+CLOSING_SOON_WINDOW = timedelta(days=14)
+
+
+def closing_soon(now: datetime) -> ColumnElement[bool]:
+    """SQL condition: the tender is open and its deadline is at most 14 days after now.
+
+    Compares instants, never local dates, so no timezone rules apply in SQL.
+
+    Args:
+        now: The current time (timezone-aware), from the caller's clock.
+    """
+    return and_(
+        TenderRecord.deadline > now,
+        TenderRecord.deadline <= now + CLOSING_SOON_WINDOW,
     )
 
 

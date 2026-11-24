@@ -2,22 +2,33 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from collections.abc import Callable
+from datetime import UTC, date, datetime
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, PlainSerializer
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 
 from core.dates import in_moroccan_time
 from downloader import dce_archive_name
 from persistence.database_probe import DatabaseProbe
 from persistence.exceptions import DocumentNotFoundError
 from persistence.file_storage import DocumentStorage
+from persistence.insights import Insights
 from persistence.tender_lookup import TenderDetail, TenderLookup
 
 DEFAULT_LIST_LIMIT = 50
 MAX_LIST_LIMIT = 200
+
+# Gives the current time (timezone-aware). Injected so tests can fix "now".
+Clock = Callable[[], datetime]
+
+
+def system_clock() -> datetime:
+    """The current time, in UTC."""
+    return datetime.now(UTC)
+
 
 # A deadline is sent as ISO 8601 with Morocco's offset, whatever timezone the
 # lookup read it in.
@@ -56,17 +67,43 @@ class TenderDetailResponse(BaseModel):
     has_dce_archive: bool
 
 
+class ClosingSoonTenderResponse(BaseModel):
+    """An open tender closing soon, as listed on the Insights page."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    reference_number: str | None
+    tender_object: str | None
+    public_buyer: str | None
+    deadline: Deadline
+
+
+class ClosingSoonResponse(BaseModel):
+    """Open tenders closing within 14 days, by time left, nearest deadline first."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    lt3: list[ClosingSoonTenderResponse]
+    from_3_to_7: list[ClosingSoonTenderResponse] = Field(serialization_alias="3to7")
+    from_7_to_14: list[ClosingSoonTenderResponse] = Field(serialization_alias="7to14")
+
+
 def create_app(
     tender_lookup: TenderLookup,
+    insights: Insights,
     document_storage: DocumentStorage,
     database_probe: DatabaseProbe,
+    clock: Clock = system_clock,
 ) -> FastAPI:
     """Build the API from its collaborators.
 
     Args:
         tender_lookup: Read-only access to every discovered tender.
+        insights: Read-only aggregate answers for the Insights page.
         document_storage: Storage the tenders' DCE archives are loaded from.
         database_probe: Reports whether the database answers, for /health.
+        clock: Gives "now" for deadline-based results.
 
     Returns:
         The FastAPI application.
@@ -95,12 +132,24 @@ def create_app(
     def list_tenders(
         limit: int = Query(DEFAULT_LIST_LIMIT, ge=1, le=MAX_LIST_LIMIT),
         offset: int = Query(0, ge=0),
+        closing_soon: bool = Query(False),
     ) -> list[TenderSummaryResponse]:
-        """List every discovered tender, newest publication first."""
-        return [
-            TenderSummaryResponse.model_validate(summary)
-            for summary in tender_lookup.list_tenders(limit=limit, offset=offset)
-        ]
+        """List every discovered tender, newest publication first.
+
+        With closing_soon, list only open tenders closing within 14 days,
+        nearest deadline first.
+        """
+        summaries = tender_lookup.list_tenders(
+            limit=limit,
+            offset=offset,
+            closing_soon_at=clock() if closing_soon else None,
+        )
+        return [TenderSummaryResponse.model_validate(summary) for summary in summaries]
+
+    @app.get("/insights/closing-soon", response_model=ClosingSoonResponse)
+    def closing_soon() -> ClosingSoonResponse:
+        """Open tenders closing within 14 days: lt3, 3to7 and 7to14 days left."""
+        return ClosingSoonResponse.model_validate(insights.closing_soon(clock()))
 
     @app.get("/tenders/{id}", response_model=TenderDetailResponse)
     def get_tender(id: int) -> TenderDetailResponse:

@@ -5,6 +5,7 @@ Run with: python -m integration_tests.main
 
 import sys
 
+from .closing_soon import test_closing_soon
 from .config import BASE_URL, logger
 from .database_probe import test_database_probe
 from .date_range_search import test_date_range_search
@@ -27,6 +28,7 @@ def main():
         test_status_transitions()
         test_indexing_selection()
         test_tender_lookup()
+        test_closing_soon()
         test_database_probe()
         test_vector_store_roundtrip()
         test_vector_store_replace()

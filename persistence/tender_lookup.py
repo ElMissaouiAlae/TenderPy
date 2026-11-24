@@ -10,7 +10,7 @@ from sqlalchemy import false, func, select
 
 from persistence.database import Database
 from persistence.exceptions import RepositoryError
-from persistence.models import TenderRecord, has_dce_archive
+from persistence.models import TenderRecord, closing_soon, has_dce_archive
 
 
 def _select_with_dce_archive_flag():
@@ -82,15 +82,20 @@ class TenderDetail:
 class TenderLookup(Protocol):
     """Read-only access to every discovered tender, whatever its status."""
 
-    def list_tenders(self, limit: int, offset: int) -> list[TenderSummary]:
+    def list_tenders(
+        self, limit: int, offset: int, closing_soon_at: datetime | None = None
+    ) -> list[TenderSummary]:
         """Return a page of tenders.
 
         Args:
             limit: Maximum number of tenders to return.
             offset: Number of tenders to skip.
+            closing_soon_at: When given, the current time: only open tenders
+                closing within 14 days of it are returned.
 
         Returns:
-            Tender summaries, newest publication first, then by id.
+            Tender summaries, newest publication first, then by id; or, with
+            closing_soon_at, nearest deadline first, then by id.
         """
 
     def get_tender(self, id: int) -> TenderDetail | None:
@@ -115,7 +120,9 @@ class PostgresTenderLookup:
         """
         self._database = database
 
-    def list_tenders(self, limit: int, offset: int) -> list[TenderSummary]:
+    def list_tenders(
+        self, limit: int, offset: int, closing_soon_at: datetime | None = None
+    ) -> list[TenderSummary]:
         """Return a page of tenders, in every status.
 
         Tenders without a publication date come last.
@@ -123,21 +130,28 @@ class PostgresTenderLookup:
         Args:
             limit: Maximum number of tenders to return.
             offset: Number of tenders to skip.
+            closing_soon_at: When given, the current time: only open tenders
+                closing within 14 days of it are returned.
 
         Returns:
-            Tender summaries, newest publication first, then by id.
+            Tender summaries, newest publication first, then by id; or, with
+            closing_soon_at, nearest deadline first, then by id.
 
         Raises:
             RepositoryError: if the query fails.
         """
         try:
             with self._database.session() as session:
-                stmt = (
-                    _select_with_dce_archive_flag()
-                    .order_by(TenderRecord.publication_date.desc().nulls_last(), TenderRecord.id)
-                    .limit(limit)
-                    .offset(offset)
-                )
+                stmt = _select_with_dce_archive_flag()
+                if closing_soon_at is None:
+                    stmt = stmt.order_by(
+                        TenderRecord.publication_date.desc().nulls_last(), TenderRecord.id
+                    )
+                else:
+                    stmt = stmt.where(closing_soon(closing_soon_at)).order_by(
+                        TenderRecord.deadline, TenderRecord.id
+                    )
+                stmt = stmt.limit(limit).offset(offset)
                 return [
                     TenderSummary(
                         id=row.TenderRecord.id,
