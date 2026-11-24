@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { dceArchiveUrl, listTenders, type TenderSummary } from "../api/client";
+import { Deadline } from "../components/Deadline";
 
 const PAGE_SIZE = 20;
 const MAX_OBJECT_LENGTH = 120;
@@ -104,7 +105,9 @@ export function TenderListPage() {
                       </td>
                       <td className="tender-table__reference">{orDash(tender.reference_number)}</td>
                       <td className="tender-table__buyer">{orDash(tender.public_buyer)}</td>
-                      <td className="tender-table__deadline">{orDash(tender.tender_end_date)}</td>
+                      <td className="tender-table__deadline">
+                        <Deadline value={tender.deadline} />
+                      </td>
                       <td className="tender-table__download">
                         {/* Sits above the row link, so it downloads without opening the tender. */}
                         {tender.has_dce_archive && (

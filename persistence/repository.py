@@ -62,7 +62,7 @@ class TenderRepository:
                         tender_object=record.tender_object,
                         public_buyer=record.public_buyer,
                         location=record.location,
-                        tender_end_date=record.tender_end_date,
+                        deadline=record.deadline,
                         status=record.status,
                     )
                     .on_conflict_do_update(
@@ -121,7 +121,7 @@ class TenderRepository:
                             "tender_object": record.tender_object,
                             "public_buyer": record.public_buyer,
                             "location": record.location,
-                            "tender_end_date": record.tender_end_date,
+                            "deadline": record.deadline,
                             "status": record.status,
                         }
                         for record in records

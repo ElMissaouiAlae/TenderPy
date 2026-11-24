@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+from typing import Annotated
+
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PlainSerializer
 
+from core.dates import in_moroccan_time
 from downloader import dce_archive_name
 from persistence.database_probe import DatabaseProbe
 from persistence.exceptions import DocumentNotFoundError
@@ -14,6 +18,10 @@ from persistence.tender_lookup import TenderDetail, TenderLookup
 
 DEFAULT_LIST_LIMIT = 50
 MAX_LIST_LIMIT = 200
+
+# A deadline is sent as ISO 8601 with Morocco's offset, whatever timezone the
+# lookup read it in.
+Deadline = Annotated[datetime | None, PlainSerializer(in_moroccan_time)]
 
 
 class TenderSummaryResponse(BaseModel):
@@ -25,7 +33,7 @@ class TenderSummaryResponse(BaseModel):
     reference_number: str | None
     tender_object: str | None
     public_buyer: str | None
-    tender_end_date: str | None
+    deadline: Deadline
     has_dce_archive: bool
 
 
@@ -43,8 +51,8 @@ class TenderDetailResponse(BaseModel):
     location: str | None
     category: str | None
     procurement_type: str | None
-    publication_date: str | None
-    tender_end_date: str | None
+    publication_date: date | None
+    deadline: Deadline
     has_dce_archive: bool
 
 

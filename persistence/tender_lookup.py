@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Protocol
 
-from sqlalchemy import case, false, func, select
+from sqlalchemy import false, func, select
 
 from persistence.database import Database
 from persistence.exceptions import RepositoryError
@@ -33,7 +34,7 @@ class TenderSummary:
         reference_number: Reference number of the tender.
         tender_object: Description/object of the tender.
         public_buyer: Name of the public buyer.
-        tender_end_date: Deadline for tender submission.
+        deadline: When bid submissions close (timezone-aware).
         has_dce_archive: Whether the tender's DCE archive is in document storage.
     """
 
@@ -41,7 +42,7 @@ class TenderSummary:
     reference_number: str | None
     tender_object: str | None
     public_buyer: str | None
-    tender_end_date: str | None
+    deadline: datetime | None
     has_dce_archive: bool
 
 
@@ -59,8 +60,8 @@ class TenderDetail:
         location: Location of the tender.
         category: Category of the tender.
         procurement_type: Type of procurement.
-        publication_date: Date the tender was published.
-        tender_end_date: Deadline for tender submission.
+        publication_date: Calendar day the tender was published.
+        deadline: When bid submissions close (timezone-aware).
         has_dce_archive: Whether the tender's DCE archive is in document storage.
     """
 
@@ -73,8 +74,8 @@ class TenderDetail:
     location: str | None
     category: str | None
     procurement_type: str | None
-    publication_date: str | None
-    tender_end_date: str | None
+    publication_date: date | None
+    deadline: datetime | None
     has_dce_archive: bool
 
 
@@ -117,9 +118,7 @@ class PostgresTenderLookup:
     def list_tenders(self, limit: int, offset: int) -> list[TenderSummary]:
         """Return a page of tenders, in every status.
 
-        Publication dates are stored as DD/MM/YYYY strings, so they are
-        parsed for ordering; tenders without one, or with one in another
-        format, come last.
+        Tenders without a publication date come last.
 
         Args:
             limit: Maximum number of tenders to return.
@@ -135,19 +134,7 @@ class PostgresTenderLookup:
             with self._database.session() as session:
                 stmt = (
                     _select_with_dce_archive_flag()
-                    .order_by(
-                        case(
-                            (
-                                TenderRecord.publication_date.regexp_match(
-                                    r"^\d{2}/\d{2}/\d{4}$"
-                                ),
-                                func.to_date(TenderRecord.publication_date, "DD/MM/YYYY"),
-                            )
-                        )
-                        .desc()
-                        .nulls_last(),
-                        TenderRecord.id,
-                    )
+                    .order_by(TenderRecord.publication_date.desc().nulls_last(), TenderRecord.id)
                     .limit(limit)
                     .offset(offset)
                 )
@@ -157,7 +144,7 @@ class PostgresTenderLookup:
                         reference_number=row.TenderRecord.reference_number,
                         tender_object=row.TenderRecord.tender_object,
                         public_buyer=row.TenderRecord.public_buyer,
-                        tender_end_date=row.TenderRecord.tender_end_date,
+                        deadline=row.TenderRecord.deadline,
                         has_dce_archive=row.has_dce_archive,
                     )
                     for row in session.execute(stmt)
@@ -195,7 +182,7 @@ class PostgresTenderLookup:
                     category=record.category,
                     procurement_type=record.procurement_type,
                     publication_date=record.publication_date,
-                    tender_end_date=record.tender_end_date,
+                    deadline=record.deadline,
                     has_dce_archive=row.has_dce_archive,
                 )
         except Exception as exc:

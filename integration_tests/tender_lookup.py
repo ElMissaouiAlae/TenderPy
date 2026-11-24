@@ -1,9 +1,10 @@
 """Test PostgresTenderLookup against a real Postgres database."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import delete, select, update
 
+from core.dates import MOROCCO
 from core.models import Tender
 from persistence import Database, Settings, TenderRecord, TenderRepository, TenderStatus
 from persistence.tender_lookup import PostgresTenderLookup
@@ -103,6 +104,32 @@ def test_tender_lookup():
         logger.info(f"Fetched by id (reference -> has_dce_archive): {fetched}")
         if fetched != expected:
             raise AssertionError(f"Expected {expected} by id, got {fetched}")
+
+        # Typed dates survive a save and a lookup, the deadline as the same instant.
+        dated_reference = f"LOOKUP-{run_id}-DATED"
+        publication_date = date(2026, 10, 3)
+        deadline = datetime(2026, 11, 4, 10, 0, tzinfo=MOROCCO)
+        repository.save(
+            Tender(
+                tender_id=dated_reference,
+                organization_acronym=ORGANIZATION_ACRONYM,
+                reference_number=dated_reference,
+                publication_date=publication_date,
+                deadline=deadline,
+            )
+        )
+        repository.update_status(dated_reference, ORGANIZATION_ACRONYM, TenderStatus.UPLOADED)
+        with database.session() as session:
+            dated_id = session.scalars(
+                select(TenderRecord.id).where(
+                    TenderRecord.organization_acronym == ORGANIZATION_ACRONYM,
+                    TenderRecord.reference_number == dated_reference,
+                )
+            ).one()
+        dated = lookup.get_tender(dated_id)
+        if dated is None or (dated.publication_date, dated.deadline) != (publication_date, deadline):
+            raise AssertionError(f"Typed dates did not round-trip: {dated}")
+        logger.info(f"Typed dates round-tripped: {dated.publication_date}, {dated.deadline.isoformat()}")
 
         detail = lookup.get_tender(ids[f"LOOKUP-{run_id}-DISCOVERED"])
         if detail is None or (detail.tender_id, detail.organization_acronym) != (

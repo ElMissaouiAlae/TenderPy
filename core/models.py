@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 
 from .exceptions import MissingTenderFieldError
 
@@ -15,12 +16,13 @@ class Tender:
     organization_acronym: str | None = None
     procurement_type: str | None = None
     category: str | None = None
-    publication_date: str | None = None
+    publication_date: date | None = None
     reference_number: str | None = None
     tender_object: str | None = None
     public_buyer: str | None = None
     location: str | None = None
-    tender_end_date: str | None = None
+    # Timezone-aware, in Moroccan local time (Africa/Casablanca).
+    deadline: datetime | None = None
 
     def validate(self) -> None:
         """Ensure identity fields are populated before persistence.
