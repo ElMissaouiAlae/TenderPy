@@ -46,7 +46,7 @@ def verify_schema(database: Database) -> bool:
                 "tender_object",
                 "public_buyer",
                 "location",
-                "tender_end_date",
+                "deadline",
                 "status",
                 "created_at",
                 "updated_at",

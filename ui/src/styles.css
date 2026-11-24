@@ -387,6 +387,17 @@ a {
   color: var(--muted);
 }
 
+/* A deadline's date over its time. */
+.deadline {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: top;
+}
+
+.deadline__time {
+  color: var(--muted);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

@@ -1,11 +1,16 @@
-from datetime import date
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from bs4 import BeautifulSoup
 
+from core.dates import parse_deadline, parse_publication_date
 from core.exceptions import HtmlParsingError
 from core.models import Tender
 from discovery.parser import SearchCriteria, SearchResultPage, SearchResultParser
+
+# Independent of core.dates.MOROCCO, so the tests pin the timezone themselves.
+CASABLANCA = ZoneInfo("Africa/Casablanca")
 
 
 def test_search_criteria_defaults_to_none():
@@ -56,12 +61,12 @@ def test_tender_creation_with_values():
         organization_acronym="ORG",
         procurement_type="Open",
         category="Works",
-        publication_date="15/01/2026",
+        publication_date=date(2026, 1, 15),
         reference_number="REF-001",
         tender_object="Construction work",
         public_buyer="City Council",
         location="Paris",
-        tender_end_date="30/01/2026"
+        deadline=datetime(2026, 1, 30, 11, 0, tzinfo=CASABLANCA),
     )
     assert tender.tender_id == "12345"
     assert tender.organization_acronym == "ORG"
@@ -751,3 +756,80 @@ def test_parse_extracts_every_tender_from_real_page_chunk():
     assert [t.tender_id for t in page.tenders] == ["1013506", "1032618", "1030723"]
     assert [t.reference_number for t in page.tenders] == ["12/SAP/2026", "46045903", "04/2026"]
 
+
+def test_parse_reads_typed_dates_from_real_page_chunk():
+    parser = SearchResultParser()
+
+    page = parser.parse(HTML_TABLE)
+
+    assert [t.publication_date for t in page.tenders] == [
+        date(2026, 8, 19),
+        date(2026, 8, 19),
+        date(2026, 8, 6),
+    ]
+    assert [t.deadline for t in page.tenders] == [
+        datetime(2026, 10, 20, 11, 0, tzinfo=CASABLANCA),
+        datetime(2026, 10, 7, 14, 0, tzinfo=CASABLANCA),
+        datetime(2026, 10, 7, 11, 0, tzinfo=CASABLANCA),
+    ]
+    # Morocco is on UTC+1 outside Ramadan.
+    assert page.tenders[0].deadline.utcoffset() == timedelta(hours=1)
+
+
+def _row_html(publication_date: str, deadline: str) -> str:
+    """One result row holding just the date cells, as the platform renders them."""
+    return f"""
+    <table><tr>
+        <td headers="cons_ref"><div>{publication_date}</div></td>
+        <td headers="cons_dateEnd"><div class="cloture-line">{deadline}</div></td>
+    </tr></table>
+    """
+
+
+def test_deadline_without_a_time_closes_at_end_of_day():
+    page = SearchResultParser().parse(_row_html("15/01/2026", "30/01/2026"))
+
+    assert page.tenders[0].deadline == datetime(2026, 1, 30, 23, 59, tzinfo=CASABLANCA)
+
+
+@pytest.mark.parametrize(
+    ("publication_date", "deadline"),
+    [
+        ("15/01/2026", "à préciser"),
+        ("15/01/2026", "31/02/2026 10:00"),
+        ("15/01/2026", "30/01/2026 25:00"),
+    ],
+)
+def test_unreadable_deadline_is_none_and_logged(publication_date, deadline, caplog):
+    page = SearchResultParser().parse(_row_html(publication_date, deadline))
+
+    assert page.tenders[0].deadline is None
+    assert page.tenders[0].publication_date == date(2026, 1, 15)
+    assert "Unreadable deadline" in caplog.text
+
+
+def test_unreadable_publication_date_is_none_and_logged(caplog):
+    assert parse_publication_date("31/02/2026") is None
+    assert "Unreadable publication date" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("20/10/2026 11:00", datetime(2026, 10, 20, 11, 0, tzinfo=CASABLANCA)),
+        ("20/10/2026<br>11:00", datetime(2026, 10, 20, 11, 0, tzinfo=CASABLANCA)),
+        ("20/10/2026\n  11:00", datetime(2026, 10, 20, 11, 0, tzinfo=CASABLANCA)),
+        # Stored before typed dates, with the date and time run together.
+        ("20/10/202611:00", datetime(2026, 10, 20, 11, 0, tzinfo=CASABLANCA)),
+        ("20/10/2026", datetime(2026, 10, 20, 23, 59, tzinfo=CASABLANCA)),
+        (None, None),
+        ("", None),
+    ],
+)
+def test_parse_deadline_reads_every_platform_form(text, expected):
+    assert parse_deadline(text) == expected
+
+
+def test_deadline_during_ramadan_uses_moroccos_offset_then():
+    # Morocco moves to UTC+0 for Ramadan (mid-February to mid-March 2026).
+    assert parse_deadline("01/03/2026 10:00").utcoffset() == timedelta(0)

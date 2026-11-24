@@ -7,6 +7,32 @@ Discovers public tenders, downloads their DCE (Dossier de Consultation des Entre
 **Tender**:
 A single procurement opportunity discovered from the source platform, identified by `(tender_id, organization_acronym)`.
 
+**Publication date**:
+The calendar day the tender appeared on the source platform. A date only, with no time of day.
+
+**Deadline**:
+The date and time (Moroccan local time, Africa/Casablanca) at which bid submissions for a tender close.
+_Avoid_: end date, tender end date, clôture
+
+**Open tender**:
+A tender whose deadline is still in the future. Once the deadline passes, the tender is **closed**. This has nothing to do with processing **Status**.
+
+**Response window**:
+The number of days between a tender's publication date and its deadline: the time a business has to prepare a bid.
+
+**Short response window**:
+A response window shorter than half the median response window for tenders in the same category.
+
+**Public buyer**:
+The specific administrative unit that publishes a tender (e.g. a provincial office). Belongs to one organisation.
+_Avoid_: buyer (on its own), acheteur
+
+**Organisation**:
+The parent body (ministry, agency, local authority) that one or more public buyers belong to. On the source platform it is identified by an opaque code.
+
+**Closing soon**:
+An open tender whose deadline falls within the next 14 days, grouped as less than 3 days, 3–7 days or 7–14 days left.
+
 **DCE archive**:
 The single zip file containing a tender's consultation documents, fetched via `TenderDownloader`. One archive per tender (1:1) — there is currently no concept of tracking the individual files inside it separately.
 _Avoid_: document (ambiguous between "the archive" and "a file inside it" — always say "DCE archive" for the former)

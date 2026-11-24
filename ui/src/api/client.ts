@@ -11,7 +11,8 @@ export interface TenderSummary {
   reference_number: string | null;
   tender_object: string | null;
   public_buyer: string | null;
-  tender_end_date: string | null;
+  // ISO 8601 with Morocco's offset, e.g. "2026-11-04T10:00:00+01:00".
+  deadline: string | null;
 }
 
 export interface TenderDetail {
@@ -24,8 +25,10 @@ export interface TenderDetail {
   location: string | null;
   category: string | null;
   procurement_type: string | null;
+  // ISO date, e.g. "2026-10-03".
   publication_date: string | null;
-  tender_end_date: string | null;
+  // ISO 8601 with Morocco's offset, e.g. "2026-11-04T10:00:00+01:00".
+  deadline: string | null;
 }
 
 export class ApiError extends Error {

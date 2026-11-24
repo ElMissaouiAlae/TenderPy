@@ -7,6 +7,7 @@ integration_tests/tender_lookup.py.
 """
 
 from collections.abc import Sequence
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -43,6 +44,9 @@ class FakeDatabaseProbe:
 
 REACHABLE = DatabaseHealth(reachable=True)
 
+# 10:00 in Casablanca on 4 November 2026 (UTC+1), as Postgres may hand it back: in UTC.
+DEADLINE = datetime(2026, 11, 4, 9, 0, tzinfo=UTC)
+
 
 def summary(id: int) -> TenderSummary:
     return TenderSummary(
@@ -50,7 +54,7 @@ def summary(id: int) -> TenderSummary:
         reference_number=f"REF-{id}",
         tender_object=f"Object {id}",
         public_buyer=f"Buyer {id}",
-        tender_end_date="04/11/2026 10:00",
+        deadline=DEADLINE,
     )
 
 
@@ -65,8 +69,8 @@ def detail(id: int) -> TenderDetail:
         location="Casablanca",
         category="Travaux",
         procurement_type="Appel d'offres ouvert",
-        publication_date="03/10/2026",
-        tender_end_date="04/11/2026 10:00",
+        publication_date=date(2026, 10, 3),
+        deadline=DEADLINE,
     )
 
 
@@ -107,7 +111,7 @@ def test_list_returns_summary_fields_only(make_client):
             "reference_number": "REF-7",
             "tender_object": "Object 7",
             "public_buyer": "Buyer 7",
-            "tender_end_date": "04/11/2026 10:00",
+            "deadline": "2026-11-04T10:00:00+01:00",
         }
     ]
 
@@ -161,8 +165,8 @@ def test_detail_returns_the_detail_fields_only(make_client):
         "location": "Casablanca",
         "category": "Travaux",
         "procurement_type": "Appel d'offres ouvert",
-        "publication_date": "03/10/2026",
-        "tender_end_date": "04/11/2026 10:00",
+        "publication_date": "2026-10-03",
+        "deadline": "2026-11-04T10:00:00+01:00",
     }
 
 

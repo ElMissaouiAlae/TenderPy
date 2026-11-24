@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Protocol
 
-from sqlalchemy import case, func, select
+from sqlalchemy import select
 
 from persistence.database import Database
 from persistence.exceptions import RepositoryError
@@ -21,14 +22,14 @@ class TenderSummary:
         reference_number: Reference number of the tender.
         tender_object: Description/object of the tender.
         public_buyer: Name of the public buyer.
-        tender_end_date: Deadline for tender submission.
+        deadline: When bid submissions close (timezone-aware).
     """
 
     id: int
     reference_number: str | None
     tender_object: str | None
     public_buyer: str | None
-    tender_end_date: str | None
+    deadline: datetime | None
 
 
 @dataclass(frozen=True)
@@ -45,8 +46,8 @@ class TenderDetail:
         location: Location of the tender.
         category: Category of the tender.
         procurement_type: Type of procurement.
-        publication_date: Date the tender was published.
-        tender_end_date: Deadline for tender submission.
+        publication_date: Calendar day the tender was published.
+        deadline: When bid submissions close (timezone-aware).
     """
 
     id: int
@@ -58,8 +59,8 @@ class TenderDetail:
     location: str | None
     category: str | None
     procurement_type: str | None
-    publication_date: str | None
-    tender_end_date: str | None
+    publication_date: date | None
+    deadline: datetime | None
 
 
 class TenderLookup(Protocol):
@@ -101,9 +102,7 @@ class PostgresTenderLookup:
     def list_with_dce_archive(self, limit: int, offset: int) -> list[TenderSummary]:
         """Return a page of tenders that have a DCE archive.
 
-        Publication dates are stored as DD/MM/YYYY strings, so they are
-        parsed for ordering; tenders without one, or with one in another
-        format, come last.
+        Tenders without a publication date come last.
 
         Args:
             limit: Maximum number of tenders to return.
@@ -120,19 +119,7 @@ class PostgresTenderLookup:
                 stmt = (
                     select(TenderRecord)
                     .where(has_dce_archive())
-                    .order_by(
-                        case(
-                            (
-                                TenderRecord.publication_date.regexp_match(
-                                    r"^\d{2}/\d{2}/\d{4}$"
-                                ),
-                                func.to_date(TenderRecord.publication_date, "DD/MM/YYYY"),
-                            )
-                        )
-                        .desc()
-                        .nulls_last(),
-                        TenderRecord.id,
-                    )
+                    .order_by(TenderRecord.publication_date.desc().nulls_last(), TenderRecord.id)
                     .limit(limit)
                     .offset(offset)
                 )
@@ -142,7 +129,7 @@ class PostgresTenderLookup:
                         reference_number=record.reference_number,
                         tender_object=record.tender_object,
                         public_buyer=record.public_buyer,
-                        tender_end_date=record.tender_end_date,
+                        deadline=record.deadline,
                     )
                     for record in session.scalars(stmt)
                 ]
@@ -178,7 +165,7 @@ class PostgresTenderLookup:
                     category=record.category,
                     procurement_type=record.procurement_type,
                     publication_date=record.publication_date,
-                    tender_end_date=record.tender_end_date,
+                    deadline=record.deadline,
                 )
         except Exception as exc:
             raise RepositoryError(f"Failed to get tender {id} with a DCE archive: {exc}") from exc

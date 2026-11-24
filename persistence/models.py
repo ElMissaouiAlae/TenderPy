@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import ClassVar
 
@@ -10,6 +10,8 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
     ColumnElement,
+    Date,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -68,12 +70,12 @@ class TenderRecord(Base):
         organization_acronym: Acronym of the organization.
         procurement_type: Type of procurement procedure.
         category: Category of the tender.
-        publication_date: Date when tender was published.
+        publication_date: Calendar day the tender was published.
         reference_number: Reference number of the tender.
         tender_object: Description/object of the tender.
         public_buyer: Name of the public buyer.
         location: Location where tender will be executed.
-        tender_end_date: Deadline for tender submission.
+        deadline: When bid submissions close (timezone-aware).
         status: Current processing status (VARCHAR for flexibility).
         last_status: Last status successfully reached before a failure;
             null unless status is FAILED.
@@ -88,12 +90,12 @@ class TenderRecord(Base):
     organization_acronym: Mapped[str | None] = mapped_column(String(50), index=True)
     procurement_type: Mapped[str | None] = mapped_column(String(100))
     category: Mapped[str | None] = mapped_column(String(100))
-    publication_date: Mapped[str | None] = mapped_column(String(20), index=True)
+    publication_date: Mapped[date | None] = mapped_column(Date, index=True)
     reference_number: Mapped[str | None] = mapped_column(String(100))
     tender_object: Mapped[str | None] = mapped_column(String)
     public_buyer: Mapped[str | None] = mapped_column(String(500))
     location: Mapped[str | None] = mapped_column(String(500))
-    tender_end_date: Mapped[str | None] = mapped_column(String(50))
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     status: Mapped[str] = mapped_column(
         String(20), default=TenderStatus.DISCOVERED.value, index=True
     )
