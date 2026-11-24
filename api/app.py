@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 
@@ -15,7 +15,7 @@ from downloader import dce_archive_name
 from persistence.database_probe import DatabaseProbe
 from persistence.exceptions import DocumentNotFoundError
 from persistence.file_storage import DocumentStorage
-from persistence.insights import Insights
+from persistence.insights import Insights, InsightsFilter, Period
 from persistence.tender_lookup import TenderDetail, TenderLookup
 
 DEFAULT_LIST_LIMIT = 50
@@ -89,6 +89,47 @@ class ClosingSoonResponse(BaseModel):
     from_7_to_14: list[ClosingSoonTenderResponse] = Field(serialization_alias="7to14")
 
 
+class CoverageResponse(BaseModel):
+    """What the period-aware insights are based on."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    tender_count: int
+    earliest_publication_date: date | None
+    latest_publication_date: date | None
+    without_deadline_count: int
+
+
+class NewTenderResponse(BaseModel):
+    """A tender published in the last 7 days, as listed on the Insights page."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    reference_number: str | None
+    tender_object: str | None
+    public_buyer: str | None
+    publication_date: date
+    deadline: Deadline
+
+
+def insights_filter_params(
+    period: Annotated[Period, Query()] = Period.LAST_30_DAYS,
+    open_only: Annotated[bool, Query()] = False,
+) -> InsightsFilter:
+    """The period and open-only filter shared by the period-aware insights.
+
+    Args:
+        period: How far back, by publication date; an unknown value is
+            rejected with 422.
+        open_only: Count only open tenders.
+
+    Returns:
+        The filter the insights module applies.
+    """
+    return InsightsFilter(period=period, open_only=open_only)
+
+
 def create_app(
     tender_lookup: TenderLookup,
     insights: Insights,
@@ -150,6 +191,21 @@ def create_app(
     def closing_soon() -> ClosingSoonResponse:
         """Open tenders closing within 14 days: lt3, 3to7 and 7to14 days left."""
         return ClosingSoonResponse.model_validate(insights.closing_soon(clock()))
+
+    @app.get("/insights/coverage", response_model=CoverageResponse)
+    def coverage(
+        insights_filter: Annotated[InsightsFilter, Depends(insights_filter_params)],
+    ) -> CoverageResponse:
+        """How many tenders the period covers, their date range, and how many lack a deadline."""
+        return CoverageResponse.model_validate(insights.coverage(clock(), insights_filter))
+
+    @app.get("/insights/new-this-week", response_model=list[NewTenderResponse])
+    def new_this_week(open_only: bool = Query(False)) -> list[NewTenderResponse]:
+        """Tenders published in the last 7 days, newest first. Ignores the period."""
+        return [
+            NewTenderResponse.model_validate(tender)
+            for tender in insights.new_this_week(clock(), open_only)
+        ]
 
     @app.get("/tenders/{id}", response_model=TenderDetailResponse)
     def get_tender(id: int) -> TenderDetailResponse:

@@ -51,6 +51,40 @@ export interface ClosingSoon {
   "7to14": ClosingSoonTender[];
 }
 
+// How far back, by publication date, the period-aware insights look.
+// Mirrors Period in persistence/insights.py.
+export type Period = "7d" | "30d" | "90d" | "all";
+
+export const DEFAULT_PERIOD: Period = "30d";
+
+// The filter shared by the period-aware Insights sections.
+export interface InsightsFilter {
+  period: Period;
+  // Only open tenders (deadline still in the future).
+  openOnly: boolean;
+}
+
+// What the period-aware insights are based on.
+export interface Coverage {
+  tender_count: number;
+  // ISO dates, e.g. "2026-10-03"; null when no tender is counted.
+  earliest_publication_date: string | null;
+  latest_publication_date: string | null;
+  without_deadline_count: number;
+}
+
+// A tender published in the last 7 days, as listed on the Insights page.
+export interface NewTender {
+  id: number;
+  reference_number: string | null;
+  tender_object: string | null;
+  public_buyer: string | null;
+  // ISO date, e.g. "2026-10-03".
+  publication_date: string;
+  // ISO 8601 with Morocco's offset, e.g. "2026-11-04T10:00:00+01:00".
+  deadline: string | null;
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -85,6 +119,24 @@ export function listTenders(
 
 export function getClosingSoon(signal?: AbortSignal): Promise<ClosingSoon> {
   return getJson<ClosingSoon>("/insights/closing-soon", signal);
+}
+
+export function getCoverage(
+  { period, openOnly }: InsightsFilter,
+  signal?: AbortSignal,
+): Promise<Coverage> {
+  const params = new URLSearchParams({ period });
+  if (openOnly) params.set("open_only", "true");
+  return getJson<Coverage>(`/insights/coverage?${params}`, signal);
+}
+
+// Tenders published in the last 7 days, newest first, whatever the period.
+export function getNewThisWeek(
+  { openOnly }: { openOnly: boolean },
+  signal?: AbortSignal,
+): Promise<NewTender[]> {
+  const query = openOnly ? "?open_only=true" : "";
+  return getJson<NewTender[]>(`/insights/new-this-week${query}`, signal);
 }
 
 // Rejects with an ApiError of status 404 when the tender does not exist.

@@ -33,6 +33,15 @@ The parent body (ministry, agency, local authority) that one or more public buye
 **Closing soon**:
 An open tender whose deadline falls within the next 14 days, grouped as less than 3 days, 3–7 days or 7–14 days left.
 
+**Period**:
+The span of publication dates an Insights figure is computed over: the last 7, 30 or 90 days, or all time. The last N days are the N calendar days ending today (Moroccan local date), so a tender published exactly N days ago is outside them. A tender without a publication date is in no period.
+
+**Coverage**:
+What the Insights figures are based on: how many tenders fall in the period, the earliest and latest publication dates among them, and how many of the period's tenders have no deadline.
+
+**New this week**:
+A tender published in the last 7 days (the 7-day period).
+
 **DCE archive**:
 The single zip file containing a tender's consultation documents, fetched via `TenderDownloader`. One archive per tender (1:1) — there is currently no concept of tracking the individual files inside it separately.
 _Avoid_: document (ambiguous between "the archive" and "a file inside it" — always say "DCE archive" for the former)

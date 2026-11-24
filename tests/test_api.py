@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from api.app import DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, create_app
 from persistence.database_probe import DatabaseHealth
 from persistence.file_storage import LocalDocumentStorage
-from persistence.insights import ClosingSoon
+from persistence.insights import ClosingSoon, Coverage, InsightsFilter, NewTender
 from persistence.tender_lookup import TenderDetail, TenderSummary
 
 
@@ -37,11 +37,17 @@ class InMemoryTenderLookup:
 
 class NoInsights:
     """Insights over no tenders. Insights are tested against Postgres in
-    integration_tests/closing_soon.py: an in-memory fake would reimplement
-    the SQL and prove nothing."""
+    integration_tests/closing_soon.py and coverage_and_new_this_week.py: an
+    in-memory fake would reimplement the SQL and prove nothing."""
 
     def closing_soon(self, now: datetime) -> ClosingSoon:
         return ClosingSoon()
+
+    def coverage(self, now: datetime, insights_filter: InsightsFilter) -> Coverage:
+        return Coverage(0, None, None, 0)
+
+    def new_this_week(self, now: datetime, open_only: bool) -> list[NewTender]:
+        return []
 
 
 class FakeDatabaseProbe:

@@ -440,6 +440,37 @@ a {
   gap: var(--space-3);
 }
 
+/* Insights: the period pills and the "Open only" toggle. */
+.insights-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Pills that read as one control: only one is pressed at a time. */
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Insights: what the numbers are based on. */
+.coverage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.coverage p {
+  margin: 0;
+}
+
+.coverage__summary {
+  color: var(--heading);
+  font-weight: 500;
+}
+
 /* An on/off filter pill: outlined when off, filled when on. */
 .filter-toggle {
   min-height: var(--target-size);
@@ -494,17 +525,18 @@ a {
   font-weight: 400;
 }
 
-.closing-soon__list {
+/* Tenders as a list of links, with the deadline on the right. */
+.tender-links {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.closing-soon__list li + li {
+.tender-links li + li {
   border-top: 1px solid var(--divider);
 }
 
-.closing-soon__item {
+.tender-links__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -515,28 +547,28 @@ a {
   text-decoration: none;
 }
 
-.closing-soon__item:hover {
+.tender-links__item:hover {
   background: var(--bg);
 }
 
-.closing-soon__main {
+.tender-links__main {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
 }
 
-.closing-soon__object {
+.tender-links__object {
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.closing-soon__meta {
+.tender-links__meta {
   color: var(--muted);
   font-size: var(--text-small);
 }
 
-.closing-soon__deadline {
+.tender-links__deadline {
   display: flex;
   flex: none;
   flex-direction: column;
@@ -912,12 +944,12 @@ a {
     font-size: var(--text-caption);
   }
 
-  .closing-soon__item {
+  .tender-links__item {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .closing-soon__deadline {
+  .tender-links__deadline {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
