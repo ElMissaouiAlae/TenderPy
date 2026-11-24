@@ -15,7 +15,16 @@ from fastapi.testclient import TestClient
 from api.app import DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, create_app
 from persistence.database_probe import DatabaseHealth
 from persistence.file_storage import LocalDocumentStorage
-from persistence.insights import ClosingSoon, Coverage, InsightsFilter, NewTender
+from persistence.insights import (
+    ClosingSoon,
+    Coverage,
+    InsightsFilter,
+    NewTender,
+    ResponseWindowDimension,
+    ResponseWindows,
+    TopDimension,
+    TopValue,
+)
 from persistence.tender_lookup import TenderDetail, TenderSummary
 
 
@@ -37,7 +46,8 @@ class InMemoryTenderLookup:
 
 class NoInsights:
     """Insights over no tenders. Insights are tested against Postgres in
-    integration_tests/closing_soon.py and coverage_and_new_this_week.py: an
+    integration_tests/closing_soon.py, coverage_and_new_this_week.py and
+    top_and_response_window.py: an
     in-memory fake would reimplement the SQL and prove nothing."""
 
     def closing_soon(self, now: datetime) -> ClosingSoon:
@@ -48,6 +58,16 @@ class NoInsights:
 
     def new_this_week(self, now: datetime, open_only: bool) -> list[NewTender]:
         return []
+
+    def top(
+        self, now: datetime, insights_filter: InsightsFilter, dimension: TopDimension, limit: int
+    ) -> list[TopValue]:
+        return []
+
+    def response_windows(
+        self, now: datetime, insights_filter: InsightsFilter, dimension: ResponseWindowDimension
+    ) -> ResponseWindows:
+        return ResponseWindows(groups=[], short_response_windows=[])
 
 
 class FakeDatabaseProbe:

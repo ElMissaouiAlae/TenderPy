@@ -18,7 +18,7 @@ _Avoid_: end date, tender end date, clôture
 A tender whose deadline is still in the future. Once the deadline passes, the tender is **closed**. This has nothing to do with processing **Status**.
 
 **Response window**:
-The number of days between a tender's publication date and its deadline: the time a business has to prepare a bid.
+The number of days between a tender's publication date and its deadline's date (Moroccan local date): the time a business has to prepare a bid. A tender without a deadline has none. The median of an even number of windows is the mean of the middle two, so it can end in .5.
 
 **Short response window**:
 A response window shorter than half the median response window for tenders in the same category.
@@ -41,6 +41,9 @@ What the Insights figures are based on: how many tenders fall in the period, the
 
 **New this week**:
 A tender published in the last 7 days (the 7-day period).
+
+**Top public buyers / categories / locations**:
+Tender counts per value over the period, most first. Values that differ only in case or spacing are counted together and shown under their most frequent spelling. A tender's location is the first one shown on the platform, so a multi-location tender counts once.
 
 **DCE archive**:
 The single zip file containing a tender's consultation documents, fetched via `TenderDownloader`. One archive per tender (1:1) — there is currently no concept of tracking the individual files inside it separately.

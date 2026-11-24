@@ -6,11 +6,15 @@ import {
   getClosingSoon,
   getCoverage,
   getNewThisWeek,
+  getResponseWindows,
+  getTop,
   type ClosingSoon,
   type ClosingSoonTender,
   type InsightsFilter,
   type NewTender,
   type Period,
+  type ResponseWindowDimension,
+  type TopDimension,
 } from "../api/client";
 import { DaysLeft } from "../components/DaysLeft";
 import { Deadline } from "../components/Deadline";
@@ -79,6 +83,28 @@ export function InsightsPage() {
       <CoverageBanner filter={filter} />
       <ClosingSoonSection />
       <NewThisWeekSection openOnly={filter.openOnly} />
+      <div className="insights-top">
+        <TopSection
+          title="Top public buyers"
+          dimension="public_buyer"
+          filter={filter}
+          empty="No public buyer in this period."
+        />
+        <TopSection
+          title="Top categories"
+          dimension="category"
+          filter={filter}
+          empty="No category in this period."
+        />
+        <TopSection
+          title="Top locations"
+          dimension="location"
+          filter={filter}
+          empty="No location in this period."
+          note="Only a tender's first location is counted."
+        />
+      </div>
+      <ResponseWindowSection filter={filter} />
     </section>
   );
 }
@@ -265,4 +291,181 @@ function TenderLinks({ tenders }: { tenders: TenderLink[] }) {
       ))}
     </ul>
   );
+}
+
+// Tender counts per public buyer, category or location in the period, most
+// first, as bars scaled to the largest count.
+function TopSection({
+  title,
+  dimension,
+  filter,
+  empty,
+  note,
+}: {
+  title: string;
+  dimension: TopDimension;
+  filter: InsightsFilter;
+  empty: string;
+  note?: string;
+}) {
+  const { period, openOnly } = filter;
+  const state = useLoad(
+    (signal) => getTop({ period, openOnly }, { dimension }, signal),
+    [period, openOnly, dimension],
+  );
+  const titleId = `top-${dimension}-title`;
+  const max = state.kind === "loaded" ? Math.max(1, ...state.data.map((v) => v.tender_count)) : 1;
+
+  return (
+    <section className="section" aria-labelledby={titleId}>
+      <h2 id={titleId} className="section__title">
+        {title}
+      </h2>
+      <div className="card">
+        {state.kind === "loading" && <p className="message">Loading…</p>}
+        {state.kind === "error" && (
+          <p className="message message--error">
+            Could not load {title.toLowerCase()}. Check that the API is running and try again.
+          </p>
+        )}
+        {state.kind === "loaded" && state.data.length === 0 && (
+          <p className="message">{empty}</p>
+        )}
+        {state.kind === "loaded" && state.data.length > 0 && (
+          <ol className="bar-list">
+            {state.data.map((value) => (
+              <li key={value.label} className="bar-list__item">
+                <span className="bar-list__label">{value.label}</span>
+                <span className="bar-list__count">{value.tender_count}</span>
+                <span className="bar-list__track" aria-hidden="true">
+                  <span
+                    className="bar-list__bar"
+                    style={{ width: `${(value.tender_count / max) * 100}%` }}
+                  />
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+        {note && <p className="card__note">{note}</p>}
+      </div>
+    </section>
+  );
+}
+
+const RESPONSE_WINDOW_DIMENSIONS: { value: ResponseWindowDimension; label: string }[] = [
+  { value: "category", label: "By category" },
+  { value: "public_buyer", label: "By public buyer" },
+];
+
+// The median response window per category or public buyer in the period,
+// and the tenders whose window is under half their category's median.
+function ResponseWindowSection({ filter }: { filter: InsightsFilter }) {
+  const { period, openOnly } = filter;
+  const [dimension, setDimension] = useState<ResponseWindowDimension>("category");
+  const state = useLoad(
+    (signal) => getResponseWindows({ period, openOnly }, dimension, signal),
+    [period, openOnly, dimension],
+  );
+  const groupHeading = dimension === "category" ? "Category" : "Public buyer";
+
+  return (
+    <section className="section" aria-labelledby="response-window-title">
+      <h2 id="response-window-title" className="section__title">
+        Response window
+      </h2>
+      <div className="card">
+        <div className="segmented" role="group" aria-label="Group response windows">
+          {RESPONSE_WINDOW_DIMENSIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              className="filter-toggle"
+              aria-pressed={dimension === value}
+              onClick={() => setDimension(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {state.kind === "loading" && <p className="message">Loading response windows…</p>}
+        {state.kind === "error" && (
+          <p className="message message--error">
+            Could not load response windows. Check that the API is running and try again.
+          </p>
+        )}
+        {state.kind === "loaded" && state.data.groups.length === 0 && (
+          <p className="message">No tender in this period has a deadline.</p>
+        )}
+        {state.kind === "loaded" && state.data.groups.length > 0 && (
+          <>
+            <p className="message">
+              Median days from publication to deadline. Tenders without a deadline are left out.
+            </p>
+            <div className="response-window__groups">
+              <table className="insights-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{groupHeading}</th>
+                    <th scope="col">Median</th>
+                    <th scope="col">Tenders</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.data.groups.map((group) => (
+                    <tr key={group.label}>
+                      <td>{group.label}</td>
+                      <td>{formatDays(group.median_days)}</td>
+                      <td>{group.tender_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <h3 className="subsection__title">
+              Short response windows{" "}
+              <span className="subsection__count">
+                ({state.data.short_response_windows.length})
+              </span>
+            </h3>
+            <p className="message">Less than half the median for their category.</p>
+            {state.data.short_response_windows.length === 0 ? (
+              <p className="message">None.</p>
+            ) : (
+              <ul className="tender-links">
+                {state.data.short_response_windows.map((tender) => (
+                  <li key={tender.id}>
+                    <Link to={`/tenders/${tender.id}`} className="tender-links__item">
+                      <span className="tender-links__main">
+                        <span className="tender-links__object">
+                          {tender.tender_object || "Untitled tender"}
+                        </span>
+                        <span className="tender-links__meta">
+                          Ref. {orDash(tender.reference_number)} · {orDash(tender.public_buyer)} ·{" "}
+                          {tender.category}
+                        </span>
+                      </span>
+                      <span className="tender-links__deadline">
+                        <span className="response-window__short">
+                          {formatDays(tender.response_window_days)}
+                        </span>
+                        <span className="tender-links__meta">
+                          Median {formatDays(tender.category_median_days)}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// "1 day", "12 days", "11.5 days".
+function formatDays(days: number): string {
+  return `${days} ${days === 1 ? "day" : "days"}`;
 }

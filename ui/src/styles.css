@@ -525,6 +525,118 @@ a {
   font-weight: 400;
 }
 
+/* Insights: the three top-count cards side by side, stacking when narrow. */
+.insights-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+/* A ranked list of labels with their counts over proportional bars. */
+.bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+}
+
+.bar-list__label {
+  overflow-wrap: anywhere;
+  font-size: var(--text-body-2);
+}
+
+.bar-list__count {
+  color: var(--heading);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-list__track {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+}
+
+.bar-list__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--nav-active);
+}
+
+.card .card__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* Insights: response-window medians, scrolling inside the card when long. */
+.response-window__groups {
+  max-height: 360px;
+  overflow: auto;
+}
+
+/* A titled part inside an Insights card, with its count beside the title. */
+.subsection__title {
+  margin: 0;
+  color: var(--heading);
+  font-size: var(--text-h3);
+  font-weight: 500;
+}
+
+.subsection__count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* A short response window, warned like an urgent deadline. */
+.response-window__short {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.insights-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body-2);
+}
+
+.insights-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+}
+
+.insights-table th,
+.insights-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--divider);
+}
+
+.insights-table th:not(:first-child),
+.insights-table td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Tenders as a list of links, with the deadline on the right. */
 .tender-links {
   margin: 0;

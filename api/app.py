@@ -15,11 +15,19 @@ from downloader import dce_archive_name
 from persistence.database_probe import DatabaseProbe
 from persistence.exceptions import DocumentNotFoundError
 from persistence.file_storage import DocumentStorage
-from persistence.insights import Insights, InsightsFilter, Period
+from persistence.insights import (
+    Insights,
+    InsightsFilter,
+    Period,
+    ResponseWindowDimension,
+    TopDimension,
+)
 from persistence.tender_lookup import TenderDetail, TenderLookup
 
 DEFAULT_LIST_LIMIT = 50
 MAX_LIST_LIMIT = 200
+DEFAULT_TOP_LIMIT = 10
+MAX_TOP_LIMIT = 50
 
 # Gives the current time (timezone-aware). Injected so tests can fix "now".
 Clock = Callable[[], datetime]
@@ -111,6 +119,48 @@ class NewTenderResponse(BaseModel):
     public_buyer: str | None
     publication_date: date
     deadline: Deadline
+
+
+class TopValueResponse(BaseModel):
+    """One value of a dimension and how many tenders have it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    label: str
+    tender_count: int
+
+
+class ResponseWindowGroupResponse(BaseModel):
+    """The median response window of one category or public buyer."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    label: str
+    median_days: float
+    tender_count: int
+
+
+class ShortResponseWindowResponse(BaseModel):
+    """A tender whose response window is under half its category's median."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    reference_number: str | None
+    tender_object: str | None
+    public_buyer: str | None
+    category: str
+    response_window_days: int
+    category_median_days: float
+
+
+class ResponseWindowsResponse(BaseModel):
+    """Median response windows per group, and the short response windows."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    groups: list[ResponseWindowGroupResponse]
+    short_response_windows: list[ShortResponseWindowResponse]
 
 
 def insights_filter_params(
@@ -206,6 +256,28 @@ def create_app(
             NewTenderResponse.model_validate(tender)
             for tender in insights.new_this_week(clock(), open_only)
         ]
+
+    @app.get("/insights/top", response_model=list[TopValueResponse])
+    def top(
+        dimension: TopDimension,
+        insights_filter: Annotated[InsightsFilter, Depends(insights_filter_params)],
+        limit: int = Query(DEFAULT_TOP_LIMIT, ge=1, le=MAX_TOP_LIMIT),
+    ) -> list[TopValueResponse]:
+        """The public buyers, categories or locations with the most tenders, most first."""
+        return [
+            TopValueResponse.model_validate(value)
+            for value in insights.top(clock(), insights_filter, dimension, limit)
+        ]
+
+    @app.get("/insights/response-window", response_model=ResponseWindowsResponse)
+    def response_window(
+        dimension: ResponseWindowDimension,
+        insights_filter: Annotated[InsightsFilter, Depends(insights_filter_params)],
+    ) -> ResponseWindowsResponse:
+        """Median response window per category or public buyer, and the short ones."""
+        return ResponseWindowsResponse.model_validate(
+            insights.response_windows(clock(), insights_filter, dimension)
+        )
 
     @app.get("/tenders/{id}", response_model=TenderDetailResponse)
     def get_tender(id: int) -> TenderDetailResponse:

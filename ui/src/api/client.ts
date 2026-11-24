@@ -85,6 +85,46 @@ export interface NewTender {
   deadline: string | null;
 }
 
+// What the top counts can be by. Mirrors TopDimension in persistence/insights.py.
+export type TopDimension = "public_buyer" | "category" | "location";
+
+// One value of a dimension and how many tenders have it. Names that differ
+// only in case or spacing are counted together, under their most frequent
+// spelling.
+export interface TopValue {
+  label: string;
+  tender_count: number;
+}
+
+// What median response windows can be grouped by. Mirrors
+// ResponseWindowDimension in persistence/insights.py.
+export type ResponseWindowDimension = "category" | "public_buyer";
+
+// The median response window of one category or public buyer.
+export interface ResponseWindowGroup {
+  label: string;
+  // Days; may end in .5 for an even-sized group.
+  median_days: number;
+  tender_count: number;
+}
+
+// A tender whose response window is under half its category's median.
+export interface ShortResponseWindow {
+  id: number;
+  reference_number: string | null;
+  tender_object: string | null;
+  public_buyer: string | null;
+  category: string;
+  response_window_days: number;
+  category_median_days: number;
+}
+
+// Groups most tenders first; short response windows shortest first.
+export interface ResponseWindows {
+  groups: ResponseWindowGroup[];
+  short_response_windows: ShortResponseWindow[];
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -121,13 +161,37 @@ export function getClosingSoon(signal?: AbortSignal): Promise<ClosingSoon> {
   return getJson<ClosingSoon>("/insights/closing-soon", signal);
 }
 
-export function getCoverage(
-  { period, openOnly }: InsightsFilter,
-  signal?: AbortSignal,
-): Promise<Coverage> {
+function filterParams({ period, openOnly }: InsightsFilter): URLSearchParams {
   const params = new URLSearchParams({ period });
   if (openOnly) params.set("open_only", "true");
-  return getJson<Coverage>(`/insights/coverage?${params}`, signal);
+  return params;
+}
+
+export function getCoverage(filter: InsightsFilter, signal?: AbortSignal): Promise<Coverage> {
+  return getJson<Coverage>(`/insights/coverage?${filterParams(filter)}`, signal);
+}
+
+// The values of a dimension with the most tenders in the period, most first.
+export function getTop(
+  filter: InsightsFilter,
+  { dimension, limit }: { dimension: TopDimension; limit?: number },
+  signal?: AbortSignal,
+): Promise<TopValue[]> {
+  const params = filterParams(filter);
+  params.set("dimension", dimension);
+  if (limit !== undefined) params.set("limit", String(limit));
+  return getJson<TopValue[]>(`/insights/top?${params}`, signal);
+}
+
+// Median response window per group in the period, and the short ones.
+export function getResponseWindows(
+  filter: InsightsFilter,
+  dimension: ResponseWindowDimension,
+  signal?: AbortSignal,
+): Promise<ResponseWindows> {
+  const params = filterParams(filter);
+  params.set("dimension", dimension);
+  return getJson<ResponseWindows>(`/insights/response-window?${params}`, signal);
 }
 
 // Tenders published in the last 7 days, newest first, whatever the period.
