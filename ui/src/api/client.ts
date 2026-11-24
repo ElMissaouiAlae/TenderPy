@@ -12,6 +12,7 @@ export interface TenderSummary {
   tender_object: string | null;
   public_buyer: string | null;
   tender_end_date: string | null;
+  has_dce_archive: boolean;
 }
 
 export interface TenderDetail {
@@ -26,6 +27,7 @@ export interface TenderDetail {
   procurement_type: string | null;
   publication_date: string | null;
   tender_end_date: string | null;
+  has_dce_archive: boolean;
 }
 
 export class ApiError extends Error {
@@ -57,14 +59,14 @@ export function listTenders(
   return getJson<TenderSummary[]>(`/tenders${query}`, signal);
 }
 
-// Rejects with an ApiError of status 404 when the tender does not exist or
-// has no DCE archive.
+// Rejects with an ApiError of status 404 when the tender does not exist.
 export function getTender(id: string, signal?: AbortSignal): Promise<TenderDetail> {
   return getJson<TenderDetail>(`/tenders/${encodeURIComponent(id)}`, signal);
 }
 
-// URL of a tender's DCE archive. Used as a plain link so the browser handles
-// the download itself; the API streams the zip from document storage.
+// URL of a tender's DCE archive; only link to it when has_dce_archive is
+// true. Used as a plain link so the browser handles the download itself; the
+// API streams the zip from document storage.
 export function dceArchiveUrl(id: number): string {
   return `${API_BASE}/tenders/${id}/dce-archive`;
 }

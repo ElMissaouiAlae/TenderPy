@@ -54,7 +54,7 @@ export function TenderDetailPage() {
       {state.kind === "not-found" && (
         <div className="card">
           <p className="message">
-            This tender was not found. It may not exist, or its DCE archive is not available.
+            This tender was not found.
           </p>
         </div>
       )}
@@ -100,12 +100,14 @@ function TenderDetailView({ tender }: { tender: TenderDetail }) {
           <Value value={tender.public_buyer} /> · Ref. <Value value={tender.reference_number} /> ·
           Published <Value value={tender.publication_date} />
         </p>
-        <div className="tender-detail__actions">
-          {/* A plain link, so the browser handles the download itself. */}
-          <a className="button button--primary" href={dceArchiveUrl(tender.id)}>
-            Download DCE archive
-          </a>
-        </div>
+        {tender.has_dce_archive && (
+          <div className="tender-detail__actions">
+            {/* A plain link, so the browser handles the download itself. */}
+            <a className="button button--primary" href={dceArchiveUrl(tender.id)}>
+              Download DCE archive
+            </a>
+          </div>
+        )}
       </header>
       {/* The template titles its cards from above, as with "My Cards". */}
       <section className="section" aria-labelledby="key-facts-title">

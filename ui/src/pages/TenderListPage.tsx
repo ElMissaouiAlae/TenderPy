@@ -60,7 +60,7 @@ export function TenderListPage() {
   return (
     <section className="page">
       {/* The page title is the top bar's heading. */}
-      <p className="page__description">Every tender whose DCE archive is available.</p>
+      <p className="page__description">Every discovered tender.</p>
       <div className="card card--table">
         {state.kind === "loading" && <p className="card__message message">Loading tenders…</p>}
         {state.kind === "error" && (
@@ -70,7 +70,7 @@ export function TenderListPage() {
         )}
         {state.kind === "loaded" && state.tenders.length === 0 && (
           <p className="card__message message">
-            {page === 1 ? "No tender has a DCE archive yet." : "No more tenders."}
+            {page === 1 ? "No tender has been discovered yet." : "No more tenders."}
           </p>
         )}
         {state.kind === "loaded" && state.tenders.length > 0 && (
@@ -107,15 +107,17 @@ export function TenderListPage() {
                       <td className="tender-table__deadline">{orDash(tender.tender_end_date)}</td>
                       <td className="tender-table__download">
                         {/* Sits above the row link, so it downloads without opening the tender. */}
-                        <a
-                          href={dceArchiveUrl(tender.id)}
-                          className="button button--outline"
-                          // Every row's button reads "Download", so name the tender too.
-                          aria-label={`Download DCE archive: ${title}`}
-                          download
-                        >
-                          Download
-                        </a>
+                        {tender.has_dce_archive && (
+                          <a
+                            href={dceArchiveUrl(tender.id)}
+                            className="button button--outline"
+                            // Every row's button reads "Download", so name the tender too.
+                            aria-label={`Download DCE archive: ${title}`}
+                            download
+                          >
+                            Download
+                          </a>
+                        )}
                       </td>
                     </tr>
                   );

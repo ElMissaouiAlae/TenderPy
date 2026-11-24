@@ -26,6 +26,7 @@ class TenderSummaryResponse(BaseModel):
     tender_object: str | None
     public_buyer: str | None
     tender_end_date: str | None
+    has_dce_archive: bool
 
 
 class TenderDetailResponse(BaseModel):
@@ -44,6 +45,7 @@ class TenderDetailResponse(BaseModel):
     procurement_type: str | None
     publication_date: str | None
     tender_end_date: str | None
+    has_dce_archive: bool
 
 
 def create_app(
@@ -54,7 +56,7 @@ def create_app(
     """Build the API from its collaborators.
 
     Args:
-        tender_lookup: Read-only access to tenders that have a DCE archive.
+        tender_lookup: Read-only access to every discovered tender.
         document_storage: Storage the tenders' DCE archives are loaded from.
         database_probe: Reports whether the database answers, for /health.
 
@@ -64,8 +66,8 @@ def create_app(
     app = FastAPI(title="TenderPy")
 
     def require_tender(id: int) -> TenderDetail:
-        """Return a tender that has a DCE archive, or respond 404."""
-        detail = tender_lookup.get_with_dce_archive(id)
+        """Return a tender, or respond 404."""
+        detail = tender_lookup.get_tender(id)
         if detail is None:
             raise HTTPException(status_code=404, detail="Tender not found")
         return detail
@@ -86,15 +88,15 @@ def create_app(
         limit: int = Query(DEFAULT_LIST_LIMIT, ge=1, le=MAX_LIST_LIMIT),
         offset: int = Query(0, ge=0),
     ) -> list[TenderSummaryResponse]:
-        """List tenders that have a DCE archive, newest publication first."""
+        """List every discovered tender, newest publication first."""
         return [
             TenderSummaryResponse.model_validate(summary)
-            for summary in tender_lookup.list_with_dce_archive(limit=limit, offset=offset)
+            for summary in tender_lookup.list_tenders(limit=limit, offset=offset)
         ]
 
     @app.get("/tenders/{id}", response_model=TenderDetailResponse)
     def get_tender(id: int) -> TenderDetailResponse:
-        """Return one tender that has a DCE archive."""
+        """Return one tender, whether or not it has a DCE archive."""
         detail = require_tender(id)
         return TenderDetailResponse.model_validate(detail)
 
@@ -102,6 +104,8 @@ def create_app(
     def download_dce_archive(id: int) -> Response:
         """Return a tender's DCE archive as a zip attachment."""
         detail = require_tender(id)
+        if not detail.has_dce_archive:
+            raise HTTPException(status_code=404, detail="DCE archive not found")
         archive_name = dce_archive_name(detail.tender_id, detail.organization_acronym)
         try:
             archive = document_storage.load_document(archive_name)

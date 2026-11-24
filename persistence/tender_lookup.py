@@ -1,15 +1,27 @@
-"""Read-only lookup over tender records, for tenders that have a DCE archive."""
+"""Read-only lookup over every discovered tender record."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, false, func, select
 
 from persistence.database import Database
 from persistence.exceptions import RepositoryError
 from persistence.models import TenderRecord, has_dce_archive
+
+
+def _select_with_dce_archive_flag():
+    """Select tender records alongside whether each has a DCE archive.
+
+    The rule yields NULL for a FAILED record without a last status (rows from
+    before last_status existed); such a record has no DCE archive.
+    """
+    return select(
+        TenderRecord,
+        func.coalesce(has_dce_archive(), false()).label("has_dce_archive"),
+    )
 
 
 @dataclass(frozen=True)
@@ -22,6 +34,7 @@ class TenderSummary:
         tender_object: Description/object of the tender.
         public_buyer: Name of the public buyer.
         tender_end_date: Deadline for tender submission.
+        has_dce_archive: Whether the tender's DCE archive is in document storage.
     """
 
     id: int
@@ -29,6 +42,7 @@ class TenderSummary:
     tender_object: str | None
     public_buyer: str | None
     tender_end_date: str | None
+    has_dce_archive: bool
 
 
 @dataclass(frozen=True)
@@ -47,6 +61,7 @@ class TenderDetail:
         procurement_type: Type of procurement.
         publication_date: Date the tender was published.
         tender_end_date: Deadline for tender submission.
+        has_dce_archive: Whether the tender's DCE archive is in document storage.
     """
 
     id: int
@@ -60,13 +75,14 @@ class TenderDetail:
     procurement_type: str | None
     publication_date: str | None
     tender_end_date: str | None
+    has_dce_archive: bool
 
 
 class TenderLookup(Protocol):
-    """Read-only access to tenders that have a DCE archive."""
+    """Read-only access to every discovered tender, whatever its status."""
 
-    def list_with_dce_archive(self, limit: int, offset: int) -> list[TenderSummary]:
-        """Return a page of tenders that have a DCE archive.
+    def list_tenders(self, limit: int, offset: int) -> list[TenderSummary]:
+        """Return a page of tenders.
 
         Args:
             limit: Maximum number of tenders to return.
@@ -76,14 +92,14 @@ class TenderLookup(Protocol):
             Tender summaries, newest publication first, then by id.
         """
 
-    def get_with_dce_archive(self, id: int) -> TenderDetail | None:
-        """Return one tender by database id, if it has a DCE archive.
+    def get_tender(self, id: int) -> TenderDetail | None:
+        """Return one tender by database id.
 
         Args:
             id: Database primary key of the tender record.
 
         Returns:
-            The tender's detail, or None if it does not exist or has no DCE archive.
+            The tender's detail, or None if it does not exist.
         """
 
 
@@ -98,8 +114,8 @@ class PostgresTenderLookup:
         """
         self._database = database
 
-    def list_with_dce_archive(self, limit: int, offset: int) -> list[TenderSummary]:
-        """Return a page of tenders that have a DCE archive.
+    def list_tenders(self, limit: int, offset: int) -> list[TenderSummary]:
+        """Return a page of tenders, in every status.
 
         Publication dates are stored as DD/MM/YYYY strings, so they are
         parsed for ordering; tenders without one, or with one in another
@@ -118,8 +134,7 @@ class PostgresTenderLookup:
         try:
             with self._database.session() as session:
                 stmt = (
-                    select(TenderRecord)
-                    .where(has_dce_archive())
+                    _select_with_dce_archive_flag()
                     .order_by(
                         case(
                             (
@@ -138,35 +153,37 @@ class PostgresTenderLookup:
                 )
                 return [
                     TenderSummary(
-                        id=record.id,
-                        reference_number=record.reference_number,
-                        tender_object=record.tender_object,
-                        public_buyer=record.public_buyer,
-                        tender_end_date=record.tender_end_date,
+                        id=row.TenderRecord.id,
+                        reference_number=row.TenderRecord.reference_number,
+                        tender_object=row.TenderRecord.tender_object,
+                        public_buyer=row.TenderRecord.public_buyer,
+                        tender_end_date=row.TenderRecord.tender_end_date,
+                        has_dce_archive=row.has_dce_archive,
                     )
-                    for record in session.scalars(stmt)
+                    for row in session.execute(stmt)
                 ]
         except Exception as exc:
-            raise RepositoryError(f"Failed to list tenders with a DCE archive: {exc}") from exc
+            raise RepositoryError(f"Failed to list tenders: {exc}") from exc
 
-    def get_with_dce_archive(self, id: int) -> TenderDetail | None:
-        """Return one tender by database id, if it has a DCE archive.
+    def get_tender(self, id: int) -> TenderDetail | None:
+        """Return one tender by database id, in any status.
 
         Args:
             id: Database primary key of the tender record.
 
         Returns:
-            The tender's detail, or None if it does not exist or has no DCE archive.
+            The tender's detail, or None if it does not exist.
 
         Raises:
             RepositoryError: if the query fails.
         """
         try:
             with self._database.session() as session:
-                stmt = select(TenderRecord).where(TenderRecord.id == id, has_dce_archive())
-                record = session.scalars(stmt).one_or_none()
-                if record is None:
+                stmt = _select_with_dce_archive_flag().where(TenderRecord.id == id)
+                row = session.execute(stmt).one_or_none()
+                if row is None:
                     return None
+                record = row.TenderRecord
                 return TenderDetail(
                     id=record.id,
                     tender_id=record.tender_id,
@@ -179,6 +196,7 @@ class PostgresTenderLookup:
                     procurement_type=record.procurement_type,
                     publication_date=record.publication_date,
                     tender_end_date=record.tender_end_date,
+                    has_dce_archive=row.has_dce_archive,
                 )
         except Exception as exc:
-            raise RepositoryError(f"Failed to get tender {id} with a DCE archive: {exc}") from exc
+            raise RepositoryError(f"Failed to get tender {id}: {exc}") from exc
