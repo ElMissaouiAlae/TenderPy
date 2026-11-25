@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Columns: Object (shortened, full text in hover title, "Untitled tender" when missing), Reference, Public buyer, Deadline (pass-through), Download; missing values show a muted "—"; no round per-row icon
 - [x] Download is an outlined pill link to `dceArchiveUrl(id)`, separate from the row link, which doesn't cover it; it downloads without navigating
@@ -15,7 +15,7 @@
 - [x] Loading, empty and error messages keep their wording, restyled
 - [x] No cards/expense panels, filter tabs, search or page numbers
 - [x] API unchanged; existing API tests pass; `npm run build` passes
-- [ ] Manually verified against frame `105:0` and at phone width against `181:279`
+- [x] Manually verified against frame `105:0` and at phone width against `181:279`
 
 ## Comments
 
