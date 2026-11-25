@@ -14,12 +14,12 @@ def tender_to_dict(tender):
         'organization_acronym': tender.organization_acronym,
         'procurement_type': tender.procurement_type,
         'category': tender.category,
-        'publication_date': tender.publication_date,
+        'publication_date': tender.publication_date.isoformat() if tender.publication_date else None,
         'reference_number': tender.reference_number,
         'tender_object': tender.tender_object,
         'public_buyer': tender.public_buyer,
         'location': tender.location,
-        'tender_end_date': tender.tender_end_date,
+        'deadline': tender.deadline.isoformat() if tender.deadline else None,
     }
 
 

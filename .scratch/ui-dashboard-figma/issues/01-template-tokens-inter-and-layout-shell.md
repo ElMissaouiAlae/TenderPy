@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Purple tokens replaced by the template's values as CSS custom properties on the root (navy `#343C6A`, blue accent `#1814F3`, `#2D60FF`, page `#F5F7FA`, borders `#E6EFF5`, card shadow, muted text darkened to about `#5B6F96`); confirmed against the frames with `get_design_context`
 - [x] Inter bundled via `@fontsource-variable/inter`, system sans fallback; no CDN request
@@ -14,7 +14,7 @@
 - [x] Phone width: menu button (`aria-label`, `aria-expanded`) opens the sidebar as a drawer that closes on navigation and on Escape
 - [x] 4.5:1 text contrast, 44 px touch targets, visible focus styles
 - [x] API unchanged; existing API tests pass; `npm run build` passes
-- [ ] Manually verified against frames `78:351` and `169:3352`
+- [x] Manually verified against frames `78:351` and `169:3352`
 
 ## Comments
 

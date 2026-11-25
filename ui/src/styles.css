@@ -28,6 +28,10 @@
   --text-secondary: var(--muted);
   /* Darker than the template's reds, which fail 4.5:1 as text. */
   --danger: #b42318;
+  --danger-soft: #fef3f2;
+  /* Amber dark enough for 4.5:1 as text on its soft background. */
+  --warning: #93370d;
+  --warning-soft: #fffaeb;
 
   --radius-card: 25px;
   --radius-button: 50px;
@@ -385,6 +389,304 @@ a {
 
 .empty-value {
   color: var(--muted);
+}
+
+/* A deadline's date over its time. */
+.deadline {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: top;
+}
+
+.deadline__time {
+  color: var(--muted);
+}
+
+/* A deadline with its days-left badge beside it. */
+.deadline-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* Time left before an open tender closes, coloured by closing-soon bucket. */
+.days-left {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--heading);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.days-left--urgent {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.days-left--soon {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+/* The list's description with its filter on the right. */
+.page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Insights: the period pills and the "Open only" toggle. */
+.insights-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Pills that read as one control: only one is pressed at a time. */
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Insights: what the numbers are based on. */
+.coverage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.coverage p {
+  margin: 0;
+}
+
+.coverage__summary {
+  color: var(--heading);
+  font-weight: 500;
+}
+
+/* An on/off filter pill: outlined when off, filled when on. */
+.filter-toggle {
+  min-height: var(--target-size);
+  padding: 0 var(--space-5);
+  border: 1px solid var(--button-outline);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--button-outline);
+  font: inherit;
+  font-size: var(--text-body-2);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filter-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filter-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.filter-toggle[aria-pressed="true"]:hover {
+  background: var(--accent-hover);
+}
+
+/* Insights: closing-soon tenders grouped by time left. */
+.closing-soon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.closing-soon__bucket {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.closing-soon__title {
+  margin: 0;
+  color: var(--heading);
+  font-size: var(--text-h3);
+  font-weight: 500;
+}
+
+.closing-soon__count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Insights: the three top-count cards side by side, stacking when narrow. */
+.insights-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+/* A ranked list of labels with their counts over proportional bars. */
+.bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+}
+
+.bar-list__label {
+  overflow-wrap: anywhere;
+  font-size: var(--text-body-2);
+}
+
+.bar-list__count {
+  color: var(--heading);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-list__track {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+}
+
+.bar-list__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--nav-active);
+}
+
+.card .card__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* Insights: response-window medians, scrolling inside the card when long. */
+.response-window__groups {
+  max-height: 360px;
+  overflow: auto;
+}
+
+/* A titled part inside an Insights card, with its count beside the title. */
+.subsection__title {
+  margin: 0;
+  color: var(--heading);
+  font-size: var(--text-h3);
+  font-weight: 500;
+}
+
+.subsection__count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* A short response window, warned like an urgent deadline. */
+.response-window__short {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.insights-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body-2);
+}
+
+.insights-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+}
+
+.insights-table th,
+.insights-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--divider);
+}
+
+.insights-table th:not(:first-child),
+.insights-table td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tenders as a list of links, with the deadline on the right. */
+.tender-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tender-links li + li {
+  border-top: 1px solid var(--divider);
+}
+
+.tender-links__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.tender-links__item:hover {
+  background: var(--bg);
+}
+
+.tender-links__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.tender-links__object {
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.tender-links__meta {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.tender-links__deadline {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  text-align: right;
 }
 
 .visually-hidden {
@@ -752,6 +1054,18 @@ a {
 
   .pager__button {
     font-size: var(--text-caption);
+  }
+
+  .tender-links__item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tender-links__deadline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
   }
 }
 

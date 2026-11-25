@@ -1,12 +1,13 @@
 """Tests for the HTTP API, driven through FastAPI's test client.
 
 The app is built by create_app with an in-memory tender lookup and
-LocalDocumentStorage on a temp directory. Which tenders have a DCE archive is
-decided by the lookup and checked against the real database in
+LocalDocumentStorage on a temp directory. Whether a tender has a DCE archive
+is decided by the lookup and checked against the real database in
 integration_tests/tender_lookup.py.
 """
 
 from collections.abc import Sequence
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,21 +15,59 @@ from fastapi.testclient import TestClient
 from api.app import DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, create_app
 from persistence.database_probe import DatabaseHealth
 from persistence.file_storage import LocalDocumentStorage
+from persistence.insights import (
+    ClosingSoon,
+    Coverage,
+    InsightsFilter,
+    NewTender,
+    ResponseWindowDimension,
+    ResponseWindows,
+    TopDimension,
+    TopValue,
+)
 from persistence.tender_lookup import TenderDetail, TenderSummary
 
 
 class InMemoryTenderLookup:
-    """Holds tenders that have a DCE archive: summaries in list order, details by id."""
+    """Holds tenders: summaries in list order, details by id."""
 
     def __init__(self, tenders: Sequence[TenderSummary], details: Sequence[TenderDetail]) -> None:
         self._tenders = list(tenders)
         self._details = {detail.id: detail for detail in details}
 
-    def list_with_dce_archive(self, limit: int, offset: int) -> list[TenderSummary]:
+    def list_tenders(
+        self, limit: int, offset: int, closing_soon_at: datetime | None = None
+    ) -> list[TenderSummary]:
         return self._tenders[offset : offset + limit]
 
-    def get_with_dce_archive(self, id: int) -> TenderDetail | None:
+    def get_tender(self, id: int) -> TenderDetail | None:
         return self._details.get(id)
+
+
+class NoInsights:
+    """Insights over no tenders. Insights are tested against Postgres in
+    integration_tests/closing_soon.py, coverage_and_new_this_week.py and
+    top_and_response_window.py: an
+    in-memory fake would reimplement the SQL and prove nothing."""
+
+    def closing_soon(self, now: datetime) -> ClosingSoon:
+        return ClosingSoon()
+
+    def coverage(self, now: datetime, insights_filter: InsightsFilter) -> Coverage:
+        return Coverage(0, None, None, 0)
+
+    def new_this_week(self, now: datetime, open_only: bool) -> list[NewTender]:
+        return []
+
+    def top(
+        self, now: datetime, insights_filter: InsightsFilter, dimension: TopDimension, limit: int
+    ) -> list[TopValue]:
+        return []
+
+    def response_windows(
+        self, now: datetime, insights_filter: InsightsFilter, dimension: ResponseWindowDimension
+    ) -> ResponseWindows:
+        return ResponseWindows(groups=[], short_response_windows=[])
 
 
 class FakeDatabaseProbe:
@@ -43,18 +82,22 @@ class FakeDatabaseProbe:
 
 REACHABLE = DatabaseHealth(reachable=True)
 
+# 10:00 in Casablanca on 4 November 2026 (UTC+1), as Postgres may hand it back: in UTC.
+DEADLINE = datetime(2026, 11, 4, 9, 0, tzinfo=UTC)
 
-def summary(id: int) -> TenderSummary:
+
+def summary(id: int, has_dce_archive: bool = True) -> TenderSummary:
     return TenderSummary(
         id=id,
         reference_number=f"REF-{id}",
         tender_object=f"Object {id}",
         public_buyer=f"Buyer {id}",
-        tender_end_date="04/11/2026 10:00",
+        deadline=DEADLINE,
+        has_dce_archive=has_dce_archive,
     )
 
 
-def detail(id: int) -> TenderDetail:
+def detail(id: int, has_dce_archive: bool = True) -> TenderDetail:
     return TenderDetail(
         id=id,
         tender_id=f"T-{id}",
@@ -65,8 +108,9 @@ def detail(id: int) -> TenderDetail:
         location="Casablanca",
         category="Travaux",
         procurement_type="Appel d'offres ouvert",
-        publication_date="03/10/2026",
-        tender_end_date="04/11/2026 10:00",
+        publication_date=date(2026, 10, 3),
+        deadline=DEADLINE,
+        has_dce_archive=has_dce_archive,
     )
 
 
@@ -79,6 +123,7 @@ def make_client(tmp_path):
     ) -> TestClient:
         app = create_app(
             tender_lookup=InMemoryTenderLookup(tenders, details),
+            insights=NoInsights(),
             document_storage=LocalDocumentStorage(tmp_path),
             database_probe=FakeDatabaseProbe(database_health),
         )
@@ -107,8 +152,20 @@ def test_list_returns_summary_fields_only(make_client):
             "reference_number": "REF-7",
             "tender_object": "Object 7",
             "public_buyer": "Buyer 7",
-            "tender_end_date": "04/11/2026 10:00",
+            "deadline": "2026-11-04T10:00:00+01:00",
+            "has_dce_archive": True,
         }
+    ]
+
+
+def test_list_includes_tenders_without_a_dce_archive(make_client):
+    client = make_client([summary(1), summary(2, has_dce_archive=False)])
+
+    response = client.get("/tenders")
+
+    assert [(tender["id"], tender["has_dce_archive"]) for tender in response.json()] == [
+        (1, True),
+        (2, False),
     ]
 
 
@@ -161,9 +218,19 @@ def test_detail_returns_the_detail_fields_only(make_client):
         "location": "Casablanca",
         "category": "Travaux",
         "procurement_type": "Appel d'offres ouvert",
-        "publication_date": "03/10/2026",
-        "tender_end_date": "04/11/2026 10:00",
+        "publication_date": "2026-10-03",
+        "deadline": "2026-11-04T10:00:00+01:00",
+        "has_dce_archive": True,
     }
+
+
+def test_detail_returns_a_tender_without_a_dce_archive(make_client):
+    client = make_client(details=[detail(5, has_dce_archive=False)])
+
+    response = client.get("/tenders/5")
+
+    assert response.status_code == 200
+    assert response.json()["has_dce_archive"] is False
 
 
 def test_detail_is_not_found_when_the_lookup_has_no_such_tender(make_client):
@@ -189,15 +256,22 @@ def test_archive_download_returns_the_stored_zip_as_an_attachment(make_client, t
     assert response.headers["content-disposition"] == 'attachment; filename="T-3_ORG.zip"'
 
 
-def test_archive_download_is_not_found_for_an_unknown_tender_or_one_without_a_dce_archive(
+def test_archive_download_is_not_found_for_an_unknown_tender(make_client):
+    client = make_client(details=[detail(3)])
+
+    response = client.get("/tenders/4/dce-archive")
+
+    assert response.status_code == 404
+
+
+def test_archive_download_is_not_found_for_a_tender_without_a_dce_archive(
     make_client, tmp_path
 ):
-    # The lookup returns no tender in both cases; which tenders have a DCE
-    # archive is checked against the real database in
-    # integration_tests/tender_lookup.py. The stored zip shows that a file in
-    # storage alone is not enough.
+    # The tender exists but has no DCE archive; the stored zip shows that a
+    # file in storage alone is not enough. Whether a tender has a DCE archive
+    # is checked against the real database in integration_tests/tender_lookup.py.
     (tmp_path / "T-4_ORG.zip").write_bytes(ARCHIVE_BYTES)
-    client = make_client(details=[detail(3)])
+    client = make_client(details=[detail(4, has_dce_archive=False)])
 
     response = client.get("/tenders/4/dce-archive")
 

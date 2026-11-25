@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from core.dates import in_moroccan_time
 from core.models import Tender
 from persistence.models import TenderRecord, TenderStatus
 
@@ -26,7 +27,7 @@ def to_record(tender: Tender) -> TenderRecord:
         tender_object=tender.tender_object,
         public_buyer=tender.public_buyer,
         location=tender.location,
-        tender_end_date=tender.tender_end_date,
+        deadline=tender.deadline,
         status=TenderStatus.DISCOVERED.value,
     )
 
@@ -50,5 +51,5 @@ def to_domain(record: TenderRecord) -> Tender:
         tender_object=record.tender_object,
         public_buyer=record.public_buyer,
         location=record.location,
-        tender_end_date=record.tender_end_date,
+        deadline=in_moroccan_time(record.deadline),
     )

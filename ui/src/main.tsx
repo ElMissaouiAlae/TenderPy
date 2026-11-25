@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import { Layout } from "./components/Layout";
+import { InsightsPage } from "./pages/InsightsPage";
 import { TenderDetailPage } from "./pages/TenderDetailPage";
 import { TenderListPage } from "./pages/TenderListPage";
 import "@fontsource-variable/inter";
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
           <Route index element={<Navigate to="/tenders" replace />} />
           <Route path="tenders" element={<TenderListPage />} />
           <Route path="tenders/:id" element={<TenderDetailPage />} />
+          <Route path="insights" element={<InsightsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

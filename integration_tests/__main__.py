@@ -5,12 +5,15 @@ Run with: python -m integration_tests.main
 
 import sys
 
+from .closing_soon import test_closing_soon
 from .config import BASE_URL, logger
+from .coverage_and_new_this_week import test_coverage_and_new_this_week
 from .database_probe import test_database_probe
 from .date_range_search import test_date_range_search
 from .indexing_selection import test_indexing_selection
 from .status_transitions import test_status_transitions
 from .tender_lookup import test_tender_lookup
+from .top_and_response_window import test_top_and_response_window
 from .vector_store_replace import test_vector_store_replace
 from .vector_store_roundtrip import test_vector_store_roundtrip
 from .vector_store_scoped_search import test_vector_store_scoped_search
@@ -27,6 +30,9 @@ def main():
         test_status_transitions()
         test_indexing_selection()
         test_tender_lookup()
+        test_closing_soon()
+        test_coverage_and_new_this_week()
+        test_top_and_response_window()
         test_database_probe()
         test_vector_store_roundtrip()
         test_vector_store_replace()

@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
 import { ApiError, dceArchiveUrl, getTender, type TenderDetail } from "../api/client";
+import { Deadline } from "../components/Deadline";
+import { formatDate } from "../dates";
 
 type State =
   | { kind: "loading" }
@@ -54,7 +56,7 @@ export function TenderDetailPage() {
       {state.kind === "not-found" && (
         <div className="card">
           <p className="message">
-            This tender was not found. It may not exist, or its DCE archive is not available.
+            This tender was not found.
           </p>
         </div>
       )}
@@ -71,13 +73,11 @@ export function TenderDetailPage() {
 }
 
 // One entry of the "Key facts" card: a muted label over its value.
-function Fact({ label, value }: { label: string; value: string | null }) {
+function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="fact">
       <dt>{label}</dt>
-      <dd>
-        <Value value={value} />
-      </dd>
+      <dd>{children}</dd>
     </div>
   );
 }
@@ -98,14 +98,16 @@ function TenderDetailView({ tender }: { tender: TenderDetail }) {
         </h2>
         <p className="tender-detail__meta">
           <Value value={tender.public_buyer} /> · Ref. <Value value={tender.reference_number} /> ·
-          Published <Value value={tender.publication_date} />
+          Published <Value value={tender.publication_date && formatDate(tender.publication_date)} />
         </p>
-        <div className="tender-detail__actions">
-          {/* A plain link, so the browser handles the download itself. */}
-          <a className="button button--primary" href={dceArchiveUrl(tender.id)}>
-            Download DCE archive
-          </a>
-        </div>
+        {tender.has_dce_archive && (
+          <div className="tender-detail__actions">
+            {/* A plain link, so the browser handles the download itself. */}
+            <a className="button button--primary" href={dceArchiveUrl(tender.id)}>
+              Download DCE archive
+            </a>
+          </div>
+        )}
       </header>
       {/* The template titles its cards from above, as with "My Cards". */}
       <section className="section" aria-labelledby="key-facts-title">
@@ -114,10 +116,18 @@ function TenderDetailView({ tender }: { tender: TenderDetail }) {
         </h3>
         <div className="card">
           <dl className="facts">
-            <Fact label="Tender ID" value={tender.tender_id} />
-            <Fact label="Organization acronym" value={tender.organization_acronym} />
-            <Fact label="Location" value={tender.location} />
-            <Fact label="Tender end date" value={tender.tender_end_date} />
+            <Fact label="Tender ID">
+              <Value value={tender.tender_id} />
+            </Fact>
+            <Fact label="Organization acronym">
+              <Value value={tender.organization_acronym} />
+            </Fact>
+            <Fact label="Location">
+              <Value value={tender.location} />
+            </Fact>
+            <Fact label="Deadline">
+              <Deadline value={tender.deadline} />
+            </Fact>
           </dl>
         </div>
       </section>

@@ -5,11 +5,12 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from bs4 import BeautifulSoup
 
+from core.dates import parse_deadline, parse_publication_date
 from core.exceptions import HtmlParsingError
 from core.models import Tender
 
@@ -97,7 +98,7 @@ class SearchResultParser:
         tender.tender_object = self._extract_labeled_block(row, "panelBlocObjet")
         tender.public_buyer = self._extract_labeled_block(row, "panelBlocDenomination")
         tender.location = self._extract_location(row)
-        tender.tender_end_date = self._extract_tender_end_date(row)
+        tender.deadline = self._extract_deadline(row)
         return tender
 
     def extract_pagination(self, soup: BeautifulSoup) -> dict[str, int | None]:
@@ -144,13 +145,13 @@ class SearchResultParser:
         node = self._find_by_id_suffix(container, id_suffix)
         return self._clean_text(node) if node is not None else None
 
-    def _extract_publication_date(self, ref_cell: Any) -> str | None:
+    def _extract_publication_date(self, ref_cell: Any) -> date | None:
         """The publication date is a bare <div>DD/MM/YYYY</div> with no id/class."""
         date_pattern = re.compile(r"\d{2}/\d{2}/\d{4}")
         for div in ref_cell.find_all("div", recursive=False):
             text = self._clean_text(div)
             if text and date_pattern.fullmatch(text):
-                return text
+                return parse_publication_date(text)
         return None
 
     def _extract_reference_number(self, row: Any) -> str | None:
@@ -180,13 +181,17 @@ class SearchResultParser:
             return re.sub(r"\s+", " ", direct_strings[0]).strip() or None
         return self._clean_text(block)
 
-    def _extract_tender_end_date(self, row: Any) -> str | None:
-        """Deadline is the first '.cloture-line' block (a hidden duplicate may also exist)."""
+    def _extract_deadline(self, row: Any) -> datetime | None:
+        """Deadline is the first '.cloture-line' block (a hidden duplicate may also exist).
+
+        The block shows the date and time on two lines split by a <br>, so its
+        strings are joined with a space to keep them apart.
+        """
         cloture_div = row.find("div", class_="cloture-line")
         if cloture_div is None:
             return None
-        text = self._clean_text(cloture_div)
-        return re.sub(r"\s+", " ", text) if text else None
+        text = cloture_div.get_text(" ", strip=True)
+        return parse_deadline(text) if text else None
 
     def _extract_attr_by_id_suffix(self, soup: BeautifulSoup, id_pattern: str, attr: str) -> str | None:
         """Find an element whose id matches the given (regex) suffix and return an attribute value."""

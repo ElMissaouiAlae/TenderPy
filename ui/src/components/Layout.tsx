@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation } from "react-router";
 // is the label of the entry the current URL falls under.
 const NAV_ENTRIES: { to: string; label: string; icon: ReactNode }[] = [
   { to: "/tenders", label: "Tenders", icon: <TendersIcon /> },
+  { to: "/insights", label: "Insights", icon: <InsightsIcon /> },
 ];
 
 function currentTitle(pathname: string): string {
@@ -102,6 +103,14 @@ function TendersIcon() {
     <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
       <path d="M14 3v6h6M8 13h8M8 17h5" />
+    </svg>
+  );
+}
+
+function InsightsIcon() {
+  return (
+    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20h16M7 16v-4M12 16V6M17 16v-7" />
     </svg>
   );
 }
